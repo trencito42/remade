@@ -126,7 +126,9 @@ export const SiteSectionSchema = z.discriminatedUnion("type", [
     headline: z.string(),
     subhead: z.string(),
     primaryCta: z.string(),
+    primaryHref: z.string().default("#contact"),
     secondaryCta: z.string().nullable(),
+    secondaryHref: z.string().nullable().default(null),
     mediaLabel: z.string().nullable(),
   }),
   z.object({
