@@ -24,8 +24,8 @@ import {
   saveResearchBrief,
   saveVisualReview,
 } from "@/lib/db/artifacts";
-import { runResearchAgent } from "@/lib/agents/research";
-import { runDesignDirector } from "@/lib/agents/design-director";
+import { runResearchAgentWithAi } from "@/lib/agents/research";
+import { runDesignDirectorWithAi } from "@/lib/agents/design-director";
 import { generateConceptsWithAi } from "@/lib/agents/concepts";
 import { buildDesignSystemWithAi } from "@/lib/agents/design-system";
 import {
@@ -80,14 +80,14 @@ export async function runDirectionJob(jobId: string, projectId: string) {
     const interview = interviewSummary(projectId);
 
     await runStage(jobId, "research", async () => {
-      const brief = runResearchAgent({ profile, interview });
+      const brief = await runResearchAgentWithAi({ projectId, profile, interview });
       saveResearchBrief(projectId, brief);
       return { category: brief.category, goals: brief.conversionGoals };
     });
 
     await runStage(jobId, "creative_brief", async () => {
       const research = getResearchBrief(projectId)!;
-      const brief = runDesignDirector({ profile, research, interview });
+      const brief = await runDesignDirectorWithAi({ projectId, profile, research, interview });
       saveCreativeBrief(projectId, brief);
       return {
         personality: brief.visualPersonality,
