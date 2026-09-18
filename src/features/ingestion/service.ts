@@ -20,7 +20,7 @@ export type IngestResult = {
   error: string | null;
 };
 
-export async function ingestAllEnabledFeeds(): Promise<IngestResult[]> {
+export async function ingestAllEnabledFeeds(concurrency = 6): Promise<IngestResult[]> {
   const db = await getDb();
   const feeds = await db
     .select()
@@ -28,22 +28,30 @@ export async function ingestAllEnabledFeeds(): Promise<IngestResult[]> {
     .where(eq(sourceFeeds.enabled, true));
 
   const results: IngestResult[] = [];
-  for (const feed of feeds) {
-    try {
-      const result = await ingestFeed(feed.id);
-      results.push(result);
-    } catch (err) {
-      results.push({
-        feedId: feed.id,
-        sourceId: feed.sourceId,
-        fetched: 0,
-        stored: 0,
-        duplicates: 0,
-        clustered: 0,
-        error: err instanceof Error ? err.message : String(err),
-      });
+  const queue = [...feeds];
+
+  const workers = Array.from({ length: Math.min(concurrency, Math.max(1, queue.length)) }, async () => {
+    while (queue.length > 0) {
+      const feed = queue.shift();
+      if (!feed) break;
+      try {
+        const result = await ingestFeed(feed.id);
+        results.push(result);
+      } catch (err) {
+        results.push({
+          feedId: feed.id,
+          sourceId: feed.sourceId,
+          fetched: 0,
+          stored: 0,
+          duplicates: 0,
+          clustered: 0,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
-  }
+  });
+
+  await Promise.all(workers);
   return results;
 }
 
