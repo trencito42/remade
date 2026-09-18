@@ -3,7 +3,7 @@ import type { UnderstandingSummary } from "@/lib/schemas/interview";
 import type { CreativeBrief } from "@/lib/schemas/style-dna";
 import { z } from "zod";
 import { ConceptSchema, type Concept } from "@/lib/schemas/site";
-import { completeJson } from "@/lib/ai/provider";
+import { completeJson, getConfiguredProvider } from "@/lib/ai/provider";
 import type { StyleDNA } from "@/lib/schemas/style-dna";
 
 function basePreview(profile: BusinessProfile, interview: UnderstandingSummary | null) {
@@ -223,7 +223,8 @@ export async function generateConceptsWithAi(input: {
       },
     });
     return result?.data ?? fallback;
-  } catch {
+  } catch (error) {
+    if (getConfiguredProvider()) throw error;
     return fallback;
   }
 }
