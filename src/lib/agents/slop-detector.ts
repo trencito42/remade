@@ -23,17 +23,6 @@ export function detectSlop(site: SiteDocument, html: string): VisualIssue[] {
     });
   }
 
-  if (/gradient|blob|glass|backdrop-filter/.test(lower)) {
-    issues.push({
-      severity: "major",
-      category: "ai_slop",
-      viewport: null,
-      observation: "Decorative gradient/glass language detected in CSS.",
-      recommendation: "Remove decorative gradients unless the creative brief requires them.",
-      selectorHint: "style",
-    });
-  }
-
   if (/lorem ipsum|500\+|award-winning|#1 rated|testimonial/.test(lower)) {
     issues.push({
       severity: "blocker",
@@ -87,6 +76,26 @@ export function detectSlop(site: SiteDocument, html: string): VisualIssue[] {
         "Many large rounded corners conflict with Style DNA corners=square.",
       recommendation: "Reduce radii to match Style DNA.",
       selectorHint: ":root",
+    });
+  }
+
+  const repeatedCards =
+    (html.match(/class="content-item"/g) ?? []).length +
+    (html.match(/class="service-item"/g) ?? []).length;
+  const visualEffects =
+    (lower.match(/gradient/g) ?? []).length +
+    (lower.match(/backdrop-filter/g) ?? []).length +
+    (lower.match(/filter:/g) ?? []).length;
+  if (repeatedCards >= 8 && visualEffects >= 4) {
+    issues.push({
+      severity: "major",
+      category: "ai_slop",
+      viewport: null,
+      observation:
+        "Many repeated content containers are combined with several decorative effects, creating a template-like rhythm.",
+      recommendation:
+        "Reduce repeated container treatment and vary composition while keeping effects only where they carry hierarchy.",
+      selectorHint: "section",
     });
   }
 
