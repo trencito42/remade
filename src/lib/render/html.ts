@@ -32,8 +32,8 @@ export function renderSiteHtml(site: SiteDocument): string {
     <h1>${esc(section.headline)}</h1>
     <p class="sub">${esc(section.subhead)}</p>
     <div class="cta-row">
-      <a class="btn" href="${esc(section.primaryHref)}">${esc(section.primaryCta)}</a>
-      ${section.secondaryCta ? `<a class="linkish" href="${esc(section.secondaryHref ?? section.primaryHref)}">${esc(section.secondaryCta)}</a>` : ""}
+      <a class="btn" href="${esc(section.primaryHref ?? "#contact")}">${esc(section.primaryCta)}</a>
+      ${section.secondaryCta ? `<a class="linkish" href="${esc(section.secondaryHref ?? section.primaryHref ?? "#contact")}">${esc(section.secondaryCta)}</a>` : ""}
     </div>
   </div>
   <div class="hero-media" aria-hidden="true">${esc(section.mediaLabel ?? "Visual")}</div>
@@ -197,7 +197,7 @@ h2 { font-family: var(--display); font-size: ${ds.typeScale.h2}; letter-spacing:
   .hero h1 { max-width: none; font-size: clamp(2.2rem, 10vw, 3.2rem); }
   .nav nav { display: none; }
 }
-${sanitizeGeneratedCss(site.customCss)}
+${sanitizeGeneratedCss(site.customCss ?? "")}
 </style>
 </head>
 <body>
@@ -230,14 +230,14 @@ h1{font-family:${display};font-size:34px;line-height:1.05;margin:0;letter-spacin
 .section h2{font-size:18px;margin:0 0 8px;font-family:${display}}
 ul{margin:0;padding-left:18px;color:#555;font-size:13px}
 @media(max-width:500px){.hero{grid-template-columns:1fr}h1{font-size:28px}}
-${sanitizeGeneratedCss(concept.previewCss)}\n</style></head><body><div class="frame">
+${sanitizeGeneratedCss(concept.previewCss ?? "")}\n</style></head><body><div class="frame">
 <div class="nav"><strong>${esc(p.nav.brand)}</strong><span>${p.nav.links.slice(0, 3).map(esc).join(" · ")}</span>${p.nav.cta ? `<span>${esc(p.nav.cta)}</span>` : ""}</div>
 <div class="hero">
   <div>
     ${p.hero.eyebrow ? `<div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:${accent}">${esc(p.hero.eyebrow)}</div>` : ""}
     <h1>${esc(p.hero.headline)}</h1>
     <p class="sub">${esc(p.hero.subhead)}</p>
-    <a class="btn" href="${esc(p.hero.primaryHref)}">${esc(p.hero.primaryCta)}</a>
+    <a class="btn" href="${esc(p.hero.primaryHref ?? "#contact")}">${esc(p.hero.primaryCta)}</a>
   </div>
   <div class="media">${esc(p.hero.mediaLabel ?? "Image")}</div>
 </div>
