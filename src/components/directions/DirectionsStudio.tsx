@@ -19,7 +19,7 @@ export function DirectionsStudio({ projectId }: { projectId: string }) {
   const [stages, setStages] = useState<
     { name: string; label: string; status: string }[]
   >([]);
-  const [viewport, setViewport] = useState<"desktop" | "mobile">("desktop");
+  const [viewport, setViewport] = useState<"desktop" | "mobile">("mobile");
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
