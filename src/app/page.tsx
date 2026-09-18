@@ -23,17 +23,29 @@ export default function HomePage() {
       </header>
 
       <section className="landing-stage" id="rebuild">
-        <div className="landing-orbit orbit-one" aria-hidden="true"><span /></div>
-        <div className="landing-orbit orbit-two" aria-hidden="true"><span /></div>
-        <div className="landing-orbit orbit-three" aria-hidden="true"><span /></div>
-        <div className="landing-orbit orbit-four" aria-hidden="true"><span /></div>
+        <div className="landing-orbit orbit-one" aria-hidden="true">
+          <span className="orbit-shine" />
+          <span className="orbit-ui orbit-ui-a"><i /><i /><i /></span>
+        </div>
+        <div className="landing-orbit orbit-two" aria-hidden="true">
+          <span className="orbit-shine" />
+          <span className="orbit-ui orbit-ui-b"><i /><i /></span>
+        </div>
+        <div className="landing-orbit orbit-three" aria-hidden="true">
+          <span className="orbit-shine" />
+          <span className="orbit-ui orbit-ui-c"><i /><i /><i /></span>
+        </div>
+        <div className="landing-orbit orbit-four" aria-hidden="true">
+          <span className="orbit-shine" />
+          <span className="orbit-ui orbit-ui-d"><i /><i /></span>
+        </div>
 
         <div className="landing-copy">
           <p className="landing-kicker"><span /> Autonomous website redesign</p>
           <h1>Your website<br />but better.</h1>
           <p className="landing-subcopy">
-            Drop your website and watch an AI design team research it, question the right things,
-            generate directions, critique the result, and repair it before you ever ship.
+            Paste your site. Remade researches it, asks what matters, explores real directions,
+            and critiques its own work before you ship.
           </p>
           <div className="landing-intake-wrap">
             <UrlIntake />
@@ -46,8 +58,17 @@ export default function HomePage() {
       </section>
 
       <section className="landing-proof" id="how">
-        <p>Not prompt-to-template.</p>
-        <h2>Research first. Design second. Critique before publish.</h2>
+        <div className="landing-proof-copy">
+          <p>Not prompt-to-template.</p>
+          <h2>Research first. Design second. Critique before publish.</h2>
+        </div>
+        <div className="landing-proof-flow" aria-label="Remade workflow">
+          <span>01 Understand</span>
+          <span>02 Direct</span>
+          <span>03 Build</span>
+          <span>04 Critique</span>
+          <span>05 Repair</span>
+        </div>
       </section>
     </main>
   );
