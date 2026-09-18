@@ -32,7 +32,7 @@ export function getEnv(): AppEnv {
   return {
     aiBaseUrl: parsed.AI_BASE_URL || parsed.BUYTOKENS_BASE_URL || "",
     aiApiKey: parsed.AI_API_KEY || parsed.BUYTOKENS_API_KEY || "",
-    aiModel: parsed.AI_MODEL || parsed.BUYTOKENS_MODEL || "gpt-5.6-sol",
+    aiModel: parsed.AI_MODEL || parsed.BUYTOKENS_MODEL || "claude-fable-5.1",
     aiEmbeddingModel: parsed.AI_EMBEDDING_MODEL || "text-embedding-3-small",
     databaseUrl: parsed.DATABASE_URL || undefined,
     pgliteDir: parsed.PGLITE_DATA_DIR || "./data/dispatch",
