@@ -6,7 +6,7 @@ type Props = { params: Promise<{ id: string }> };
 export default async function InterviewPage({ params }: Props) {
   const { id } = await params;
   return (
-    <main className="shell">
+    <main className="shell workflow-shell">
       <header className="topbar">
         <Link className="brand" href="/">
           Remade
