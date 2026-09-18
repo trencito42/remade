@@ -154,6 +154,7 @@ export const SiteSectionSchema = z.discriminatedUnion("type", [
 
 export const SiteDocumentSchema = z.object({
   version: z.literal(1),
+  customCss: z.string().max(20000).default(""),
   meta: z.object({
     title: z.string(),
     description: z.string(),
