@@ -5,7 +5,7 @@ import {
   type InterviewQuestion,
   type UnderstandingSummary,
 } from "@/lib/schemas/interview";
-import { completeJson } from "@/lib/ai/provider";
+import { completeJson, getConfiguredProvider } from "@/lib/ai/provider";
 import { z } from "zod";
 
 function baseQuestions(profile: BusinessProfile): InterviewQuestion[] {
@@ -293,7 +293,8 @@ export async function selectNextQuestionsWithAi(input: {
       },
     });
     return result?.data?.length ? result.data : fallback;
-  } catch {
+  } catch (error) {
+    if (getConfiguredProvider()) throw error;
     return fallback;
   }
 }
