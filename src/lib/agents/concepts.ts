@@ -1,230 +1,242 @@
 import type { BusinessProfile } from "@/lib/schemas/business";
 import type { UnderstandingSummary } from "@/lib/schemas/interview";
-import type { CreativeBrief } from "@/lib/schemas/style-dna";
+import type { CreativeBrief, StyleDNA } from "@/lib/schemas/style-dna";
 import { z } from "zod";
 import { ConceptSchema, type Concept } from "@/lib/schemas/site";
 import { completeJson, getConfiguredProvider } from "@/lib/ai/provider";
-import type { StyleDNA } from "@/lib/schemas/style-dna";
 
-function basePreview(profile: BusinessProfile, interview: UnderstandingSummary | null) {
-  const brand = profile.businessName ?? "Business";
-  const cta =
-    interview?.primaryConversion ??
-    profile.primaryCtas[0] ??
-    "Contact us";
-  const services = profile.servicesOrProducts.slice(0, 3);
-  return {
-    nav: {
-      brand,
-      links: profile.navigation.slice(0, 4).length
-        ? profile.navigation.slice(0, 4)
-        : ["Services", "About", "Contact"],
-      cta,
-    },
-    hero: {
-      eyebrow: profile.businessType,
-      headline: brand,
-      subhead:
-        interview?.whatTheyDo ??
-        profile.tagline ??
-        profile.summary.slice(0, 160),
-      primaryCta: cta,
-      secondaryCta: profile.contact.phones[0] ? "Call now" : null,
-      mediaLabel: "Primary photograph",
-    },
-    section: {
-      title: services.length ? "What we do" : "Why choose us",
-      body: "Clear, factual service overview — no invented claims.",
-      items: services.length
-        ? services
-        : ["Core offering", "How we work", "Get in touch"],
-    },
-  };
-}
-
-function dna(
-  name: string,
-  partial: Omit<StyleDNA, "version" | "name" | "avoidPatterns"> & {
-    avoidPatterns?: string[];
-  },
-  brief: CreativeBrief,
-): StyleDNA {
+function fallbackDna(brief: CreativeBrief, name: string): StyleDNA {
   return {
     version: 1,
     name,
-    avoidPatterns: [
-      ...(partial.avoidPatterns ?? []),
-      ...brief.patternsToAvoid.slice(0, 8),
-    ],
-    ...partial,
+    personality: brief.visualPersonality,
+    typography: brief.typographyDirection,
+    density: brief.density,
+    corners: "subtle",
+    borders: "restrained",
+    imagery: brief.imageryTreatment,
+    layout: brief.layoutPhilosophy,
+    motion: brief.motionPhilosophy,
+    contrast: "balanced",
+    colorIntent: "derive from the business and its existing brand signals",
+    navigationStyle: brief.navigationStyle,
+    ctaHierarchy: brief.ctaHierarchy,
+    sectionRhythm: brief.sectionRhythm,
+    avoidPatterns: brief.patternsToAvoid.slice(0, 10),
   };
 }
 
 /**
- * Three meaningfully different directions — not recolors of one layout.
+ * Non-AI installs do not pretend to provide art direction quality.
+ * This keeps the product honest instead of silently falling back to presets.
  */
 export function generateConcepts(input: {
   profile: BusinessProfile;
   brief: CreativeBrief;
   interview: UnderstandingSummary | null;
 }): Concept[] {
-  const preview = basePreview(input.profile, input.interview);
-  const brief = input.brief;
-  const type = (input.profile.businessType ?? "").toLowerCase();
+  const brand = input.profile.businessName ?? "Business";
+  const purpose =
+    input.interview?.whatTheyDo ??
+    input.profile.tagline ??
+    input.profile.summary.slice(0, 180);
+  const primary =
+    input.interview?.primaryConversion ??
+    input.profile.primaryCtas[0] ??
+    "Learn more";
 
-  const editorial: Concept = ConceptSchema.parse({
-    letter: "A",
-    name: type.includes("plumb") || type.includes("home")
-      ? "Editorial Trust"
-      : "Editorial / photography-led",
-    pitch: "Large typography and a dominant visual plane. Sparse sections. Brand-first.",
-    differentiation: "Asymmetric hero, serif display, imagery as the stage — not cards.",
-    styleDna: dna(
-      "Editorial",
-      {
-        personality: "premium editorial",
-        typography: "serif display / quiet sans",
-        density: "airy",
-        corners: "square",
-        borders: "none",
-        imagery: "dominant",
-        layout: "asymmetric editorial",
-        motion: "restrained",
-        contrast: "strong",
-        colorIntent: "ink on paper with one deep accent",
-        navigationStyle: "minimal text links + one CTA",
-        ctaHierarchy: "one primary action in hero",
-        sectionRhythm: "full-bleed then quiet text band",
+  return (["A", "B", "C"] as const).map((letter, index) =>
+    ConceptSchema.parse({
+      letter,
+      name: `${brand} direction ${letter}`,
+      pitch: "AI art direction is unavailable in this environment.",
+      differentiation: "Configure an AI provider to generate production-quality directions.",
+      previewCss: "",
+      styleDna: fallbackDna(input.brief, `Direction ${letter}`),
+      preview: {
+        layout: `unavailable-${index + 1}`,
+        blocks: [
+          {
+            kind: "headline",
+            variant: "primary",
+            eyebrow: input.profile.businessType,
+            title: brand,
+            body: purpose,
+            items: [],
+            meta: null,
+            cta: primary,
+          },
+        ],
       },
-      brief,
-    ),
-    preview: {
-      ...preview,
-      hero: {
-        ...preview.hero,
-        headline: preview.hero.headline,
-        subhead: preview.hero.subhead,
-      },
-    },
-  });
-
-  const minimal: Concept = ConceptSchema.parse({
-    letter: "B",
-    name: "Minimal / architectural",
-    pitch: "Grid discipline, quiet surfaces, precise type. Trust through clarity.",
-    differentiation: "Structured columns, restrained borders, no decorative chrome.",
-    styleDna: dna(
-      "Minimal",
-      {
-        personality: "precise professional",
-        typography: "geometric sans",
-        density: "airy",
-        corners: "subtle",
-        borders: "restrained",
-        imagery: "supporting",
-        layout: "structured",
-        motion: "none",
-        contrast: "balanced",
-        colorIntent: "stone neutrals + sharp accent",
-        navigationStyle: "left brand / right links",
-        ctaHierarchy: "text link secondary, solid primary",
-        sectionRhythm: "even modules with breathing room",
-      },
-      brief,
-    ),
-    preview,
-  });
-
-  const bold: Concept = ConceptSchema.parse({
-    letter: "C",
-    name: type.includes("funeral")
-      ? "Quiet strength"
-      : "Bold / expressive",
-    pitch: type.includes("funeral")
-      ? "Dignified contrast and calm spacing — expressive without spectacle."
-      : "High contrast type, assertive CTA, expressive but intentional layout breaks.",
-    differentiation: "Strong contrast and denser hero energy without SaaS clichés.",
-    styleDna: dna(
-      type.includes("funeral") ? "Quiet strength" : "Bold",
-      {
-        personality: type.includes("funeral") ? "dignified bold" : "bold expressive",
-        typography: "utilitarian grotesque",
-        density: "compact",
-        corners: "square",
-        borders: "structural",
-        imagery: "minimal",
-        layout: "expressive",
-        motion: "restrained",
-        contrast: "strong",
-        colorIntent: "near-black / near-white with one hot accent",
-        navigationStyle: "dense utility bar",
-        ctaHierarchy: "oversized primary CTA",
-        sectionRhythm: "tight stacks punctuated by wide rules",
-      },
-      brief,
-    ),
-    preview: {
-      ...preview,
-      hero: {
-        ...preview.hero,
-        eyebrow: null,
-      },
-    },
-  });
-
-  return [editorial, minimal, bold];
+    }),
+  );
 }
 
+function samePositionRatio(a: Concept, b: Concept): number {
+  const aa = a.preview.blocks.map((block) => block.kind);
+  const bb = b.preview.blocks.map((block) => block.kind);
+  const longest = Math.max(aa.length, bb.length, 1);
+  let same = 0;
+  for (let i = 0; i < longest; i += 1) {
+    if (aa[i] && aa[i] === bb[i]) same += 1;
+  }
+  return same / longest;
+}
 
-/** Prefer AI art direction when configured; deterministic concepts remain the safe fallback. */
+function assertConceptDiversity(concepts: Concept[]) {
+  const names = new Set(concepts.map((concept) => concept.name.trim().toLowerCase()));
+  const layouts = new Set(
+    concepts.map((concept) => concept.preview.layout.trim().toLowerCase()),
+  );
+  const signatures = new Set(
+    concepts.map((concept) =>
+      concept.preview.blocks.map((block) => block.kind).join(">"),
+    ),
+  );
+
+  if (names.size !== 3) throw new Error("Concept names are not distinct");
+  if (layouts.size !== 3) throw new Error("Concept layout philosophies are too similar");
+  if (signatures.size !== 3) throw new Error("Concept block structures are too similar");
+
+  for (let i = 0; i < concepts.length; i += 1) {
+    if (concepts[i].preview.blocks.length < 3) {
+      throw new Error(`Concept ${concepts[i].letter} is under-designed`);
+    }
+    for (let j = i + 1; j < concepts.length; j += 1) {
+      if (samePositionRatio(concepts[i], concepts[j]) >= 0.75) {
+        throw new Error(
+          `Concepts ${concepts[i].letter} and ${concepts[j].letter} share too much composition`,
+        );
+      }
+    }
+  }
+}
+
+const CONTRACT = {
+  concept: {
+    letter: "A | B | C",
+    name: "short memorable direction name",
+    pitch: "one sentence explaining the product/design idea",
+    differentiation: "what makes this composition structurally unlike the other two",
+    previewCss: "self-contained CSS targeting the generated block classes",
+    styleDna: {
+      version: 1,
+      name: "direction name",
+      personality: "string",
+      typography: "string",
+      density: "string",
+      corners: "string",
+      borders: "string",
+      imagery: "string",
+      layout: "string",
+      motion: "string",
+      contrast: "string",
+      colorIntent: "string",
+      navigationStyle: "string",
+      ctaHierarchy: "string",
+      sectionRhythm: "string",
+      avoidPatterns: ["strings"],
+    },
+    preview: {
+      layout: "unique composition philosophy",
+      blocks: [
+        {
+          kind:
+            "nav | headline | text | media | list | ticker | data | feature | quote | cta | split",
+          variant: "freeform semantic variant",
+          eyebrow: "string or null",
+          title: "string or null",
+          body: "string or null",
+          items: ["short factual strings"],
+          meta: "string or null",
+          cta: "string or null",
+        },
+      ],
+    },
+  },
+};
+
 export async function generateConceptsWithAi(input: {
   projectId: string;
   profile: BusinessProfile;
   brief: CreativeBrief;
   interview: UnderstandingSummary | null;
 }): Promise<Concept[]> {
-  const fallback = generateConcepts(input);
-  try {
-    const result = await completeJson<Concept[]>({
-      projectId: input.projectId,
-      task: "concepts",
-      temperature: 0.75,
-      messages: [
-        {
-          role: "system",
-          content: [
-            "You are an elite web design director, not a template generator.",
-            "Create exactly 3 genuinely different website directions A, B, C for the specific business.",
-            "They must differ in composition, typography, density, imagery treatment and section rhythm, not just colors.",
-            "Avoid generic SaaS heroes, gradient blobs, card soup, repetitive icon grids, fake stats and invented claims.",
-            "Mobile must feel intentionally designed, not a collapsed desktop.",
-            "For each concept, write previewCss that makes its preview composition meaningfully unique. Keep it self-contained CSS, no @import and no url().",
-            "Return JSON only. Preserve every field and enum value required by the supplied examples.",
-          ].join(" "),
+  const provider = getConfiguredProvider();
+  if (!provider) return generateConcepts(input);
+
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const result = await completeJson<Concept[]>({
+        projectId: input.projectId,
+        task: "concepts",
+        temperature: attempt === 0 ? 0.82 : 0.92,
+        messages: [
+          {
+            role: "system",
+            content: [
+              "You are the senior product designer and frontend art director for an elite generative website builder.",
+              "Your quality bar is a polished, contemporary, production-worthy concept, not a wireframe and not a themed template.",
+              "Create exactly three directions A, B and C for this specific website.",
+              "Each direction must propose a different PRODUCT COMPOSITION, not merely a different visual style.",
+              "The old website is evidence about facts, content and identity. Its existing layout is NOT an art-direction constraint.",
+              "One direction may reinterpret useful qualities of the old site, but the three directions must not all inherit its visual language.",
+              "Choose the opening experience based on the visitor's actual job. A homepage does not need a conventional hero.",
+              "Use data-first, editorial, utility, media-first, catalogue, narrative, transactional, dashboard-like, index-like or other compositions only when the business warrants them.",
+              "Mobile is a first-class canvas. The preview should communicate the direction within roughly one mobile screen plus a small continuation, not a long mini website.",
+              "Use concise factual copy. Do not dump source text into giant headlines.",
+              "Do not invent testimonials, metrics, awards, customers, prices, dates or claims.",
+              "Avoid card soup, generic SaaS composition, repetitive three-column features, decorative gradients and arbitrary glass unless specifically earned by the concept.",
+              "previewCss must provide real art direction: typography hierarchy, spacing, grid, surfaces, contrast and responsive behavior.",
+              "No @import and no url() in previewCss.",
+              "The three preview.layout values must all be different.",
+              "The sequence of block kinds must materially differ across A, B and C.",
+              "Return JSON only matching the supplied field contract.",
+            ].join(" "),
+          },
+          {
+            role: "user",
+            content: JSON.stringify({
+              businessFacts: input.profile,
+              ownerInterview: input.interview,
+              creativeBrief: input.brief,
+              fieldContract: CONTRACT,
+              rejectionFromPreviousAttempt:
+                attempt === 0
+                  ? null
+                  : String(
+                      lastError instanceof Error
+                        ? lastError.message
+                        : "Previous concepts were not distinct or polished enough",
+                    ),
+            }),
+          },
+        ],
+        parseJson: (raw) => {
+          const start = raw.indexOf("[");
+          const end = raw.lastIndexOf("]");
+          const slice =
+            start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
+          const parsed = z.array(ConceptSchema).length(3).parse(JSON.parse(slice));
+          const letters = parsed.map((concept) => concept.letter).join("");
+          if (letters !== "ABC") {
+            throw new Error("Concept letters must be A, B, C");
+          }
+          assertConceptDiversity(parsed);
+          return parsed;
         },
-        {
-          role: "user",
-          content: JSON.stringify({
-            business: input.profile,
-            ownerInterview: input.interview,
-            creativeBrief: input.brief,
-            schemaExamples: fallback,
-          }),
-        },
-      ],
-      parseJson: (raw) => {
-        const start = raw.indexOf("[");
-        const end = raw.lastIndexOf("]");
-        const slice = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
-        const parsed = z.array(ConceptSchema).length(3).parse(JSON.parse(slice));
-        const letters = parsed.map((x) => x.letter).join("");
-        if (letters !== "ABC") throw new Error("Concept letters must be A, B, C");
-        return parsed;
-      },
-    });
-    return result?.data ?? fallback;
-  } catch (error) {
-    if (getConfiguredProvider()) throw error;
-    return fallback;
+      });
+
+      if (!result?.data) throw new Error("AI returned no concepts");
+      return result.data;
+    } catch (error) {
+      lastError = error;
+    }
   }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Could not generate sufficiently distinct concepts");
 }
