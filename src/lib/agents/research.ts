@@ -5,7 +5,7 @@ import {
   type ResearchBrief,
 } from "@/lib/schemas/site";
 import { retrieveReferences } from "@/lib/references/library";
-import { completeJson } from "@/lib/ai/provider";
+import { completeJson, getConfiguredProvider } from "@/lib/ai/provider";
 
 export function runResearchAgent(input: {
   profile: BusinessProfile;
@@ -99,7 +99,8 @@ export async function runResearchAgentWithAi(input: {
       },
     });
     return result?.data ?? fallback;
-  } catch {
+  } catch (error) {
+    if (getConfiguredProvider()) throw error;
     return fallback;
   }
 }
