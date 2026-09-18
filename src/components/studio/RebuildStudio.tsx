@@ -29,7 +29,7 @@ export function RebuildStudio({ projectId }: { projectId: string }) {
     { id: string; role: string; content: string }[]
   >([]);
   const [mode, setMode] = useState<"rebuilt" | "original">("rebuilt");
-  const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  const [device, setDevice] = useState<"desktop" | "mobile">("mobile");
   const [draft, setDraft] = useState("");
   const [sharePath, setSharePath] = useState<string | null>(null);
   const [previewPath, setPreviewPath] = useState<string | null>(null);
