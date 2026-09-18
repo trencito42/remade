@@ -33,7 +33,7 @@ import {
   implementWebsiteWithAi,
 } from "@/lib/agents/implement";
 import { renderSiteHtml } from "@/lib/render/html";
-import { critiqueRenderedSite } from "@/lib/agents/visual-critic";
+import { critiqueRenderedSiteWithAi } from "@/lib/agents/visual-critic";
 import { detectSlop } from "@/lib/agents/slop-detector";
 import { repairSiteDocument } from "@/lib/agents/repair";
 import type { UnderstandingSummary } from "@/lib/schemas/interview";
@@ -203,7 +203,8 @@ export async function runQaJob(jobId: string, projectId: string) {
         const current = getCurrentVersion(projectId);
         if (!current) throw new Error("No website version to review");
 
-        const result = critiqueRenderedSite({
+        const result = await critiqueRenderedSiteWithAi({
+          projectId,
           site: current.site,
           html: current.html,
           brief,
@@ -271,7 +272,8 @@ export async function runQaJob(jobId: string, projectId: string) {
     });
 
     await runStage(jobId, "critique", async () => {
-      const result = critiqueRenderedSite({
+      const result = await critiqueRenderedSiteWithAi({
+        projectId,
         site: current.site,
         html: current.html,
         brief,
