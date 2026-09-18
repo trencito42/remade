@@ -1,7 +1,6 @@
-import { ArticleList, EmptyState } from "@/components/news/ArticleList";
-import type { MockStory } from "@/lib/mock/stories";
+import { ArticleList, EmptyState, type PublicArticleItem } from "@/components/news/ArticleList";
 
-export function StoryIndex({ title, stories }: { title: string; stories: MockStory[] }) {
+export function StoryIndex({ title, stories }: { title: string; stories: PublicArticleItem[] }) {
   return (
     <div className="pt-3">
       <h1 className="text-[12px] font-medium tracking-[-0.01em] text-faint">{title}</h1>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Command } from "cmdk";
-import { categoryMeta } from "@/lib/mock/stories";
+import { categoryMeta } from "@/lib/config/env";
 
 type SearchHit = {
   id: string;
@@ -12,7 +12,7 @@ type SearchHit = {
   title: string;
   dek: string;
   leadSource: string;
-  category: keyof typeof categoryMeta;
+  category: string;
   published: boolean;
 };
 
@@ -63,32 +63,35 @@ export function SearchCommand({ variant }: { variant: "public" | "desk" }) {
             }
           >
             <div className="search-panel pointer-events-auto w-full sm:w-[min(520px,100%)]">
-            <Dialog.Title className="sr-only">Search</Dialog.Title>
-            <Command label="Search stories" className="outline-none">
-              <Command.Input placeholder="Search stories" className="search-input" />
-              <Command.List className="search-list">
-                <Command.Empty className="px-2.5 py-10 text-[13px] text-mute">No matching stories.</Command.Empty>
-                {items.map((story) => (
-                  <Command.Item
-                    key={story.id}
-                    value={`${story.title} ${story.dek} ${story.leadSource}`}
-                    className="search-item"
-                    onSelect={() => {
-                      setOpen(false);
-                      router.push(variant === "public" || story.published ? `/story/${story.slug}` : `/newsroom/${story.id}`);
-                    }}
-                  >
-                    <span className="row-title text-[14px] leading-snug">{story.title}</span>
-                    <span className="mt-0.5 text-[12px] text-mute">
-                      {categoryMeta[story.category].label}
-                      <span className="mx-1.5 text-faint">·</span>
-                      {story.leadSource}
-                    </span>
-                  </Command.Item>
-                ))}
-              </Command.List>
-            </Command>
-          </div>
+              <Dialog.Title className="sr-only">Search</Dialog.Title>
+              <Command label="Search stories" className="outline-none">
+                <Command.Input placeholder="Search stories..." className="search-input" />
+                <Command.List className="search-list">
+                  <Command.Empty className="px-2.5 py-10 text-[13px] text-mute">No matching stories.</Command.Empty>
+                  {items.map((story) => {
+                    const cat = categoryMeta[story.category] ?? { label: story.category };
+                    return (
+                      <Command.Item
+                        key={story.id}
+                        value={`${story.title} ${story.dek} ${story.leadSource}`}
+                        className="search-item"
+                        onSelect={() => {
+                          setOpen(false);
+                          router.push(variant === "public" || story.published ? `/story/${story.slug}` : `/newsroom/${story.id}`);
+                        }}
+                      >
+                        <span className="row-title text-[14px] leading-snug">{story.title}</span>
+                        <span className="mt-0.5 text-[12px] text-mute">
+                          {cat.label}
+                          <span className="mx-1.5 text-faint">·</span>
+                          {story.leadSource}
+                        </span>
+                      </Command.Item>
+                    );
+                  })}
+                </Command.List>
+              </Command>
+            </div>
           </div>
         </Dialog.Content>
       </Dialog.Portal>

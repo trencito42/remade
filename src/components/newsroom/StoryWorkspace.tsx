@@ -3,15 +3,42 @@
 import { useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { formatDateTime } from "@/lib/utils";
-import { categoryMeta, type MockClaim, type MockSource, type MockStory } from "@/lib/mock/stories";
+import { categoryMeta } from "@/lib/config/env";
 import { StoryStatus } from "@/components/newsroom/StoryStatus";
 import { DraftEditor } from "@/components/newsroom/DraftEditor";
-import { SourceDetail } from "@/components/ui/SourceDetail";
+import { SourceDetail, type SourceViewItem } from "@/components/ui/SourceDetail";
+import type { HydratedWorkspace } from "@/features/stories/repository";
+import { extractClaimsAction, generateBriefAction } from "@/app/(dashboard)/newsroom/actions";
 
-export function StoryWorkspace({ story }: { story: MockStory }) {
+export function StoryWorkspace({ story }: { story: HydratedWorkspace }) {
   const [activeClaimId, setActiveClaimId] = useState<string | null>(null);
+  const [extractingClaims, setExtractingClaims] = useState(false);
+  const [generatingBrief, setGeneratingBrief] = useState(false);
+
   const activeClaim = story.claims.find((claim) => claim.id === activeClaimId) ?? null;
   const highlighted = new Set(activeClaim?.sourceIds ?? []);
+
+  async function handleExtractClaims() {
+    setExtractingClaims(true);
+    try {
+      await extractClaimsAction(story.id);
+    } catch (err) {
+      alert("Failed to extract claims: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setExtractingClaims(false);
+    }
+  }
+
+  async function handleGenerateBrief() {
+    setGeneratingBrief(true);
+    try {
+      await generateBriefAction(story.id);
+    } catch (err) {
+      alert("Failed to generate brief: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setGeneratingBrief(false);
+    }
+  }
 
   return (
     <article>
@@ -19,7 +46,19 @@ export function StoryWorkspace({ story }: { story: MockStory }) {
 
       <div className="mt-8 lg:grid lg:grid-cols-[minmax(0,1fr)_220px] lg:gap-12">
         <div className="min-w-0">
-          <Section title="Brief">
+          <Section
+            title="Brief"
+            action={
+              <button
+                type="button"
+                disabled={generatingBrief}
+                onClick={handleGenerateBrief}
+                className="text-[11px] text-faint hover:text-ink"
+              >
+                {generatingBrief ? "Updating brief..." : "Refresh Brief"}
+              </button>
+            }
+          >
             <p className="max-w-[58ch] text-[15px] leading-[1.55]">{story.summary}</p>
           </Section>
 
@@ -35,12 +74,30 @@ export function StoryWorkspace({ story }: { story: MockStory }) {
             <LineList items={story.brief.contradictions} empty="No conflicting claims." />
           </Section>
 
-          <Section title="Claims">
-            <ClaimList
-              claims={story.claims}
-              activeId={activeClaimId}
-              onSelect={(id) => setActiveClaimId((current) => (current === id ? null : id))}
-            />
+          <Section
+            title="Claims"
+            action={
+              <button
+                type="button"
+                disabled={extractingClaims}
+                onClick={handleExtractClaims}
+                className="text-[11px] text-faint hover:text-ink"
+              >
+                {extractingClaims ? "Extracting..." : "Extract Claims"}
+              </button>
+            }
+          >
+            {story.claims.length === 0 ? (
+              <p className="text-[14px] text-mute">
+                No claims extracted yet. Click &quot;Extract Claims&quot; to analyze sources.
+              </p>
+            ) : (
+              <ClaimList
+                claims={story.claims}
+                activeId={activeClaimId}
+                onSelect={(id) => setActiveClaimId((current) => (current === id ? null : id))}
+              />
+            )}
             {activeClaim ? (
               <p className="mt-2 px-2 text-[12px] text-mute">
                 {activeClaim.sourceIds.length} supporting source{activeClaim.sourceIds.length === 1 ? "" : "s"}
@@ -50,20 +107,32 @@ export function StoryWorkspace({ story }: { story: MockStory }) {
           </Section>
 
           <Section title="Timeline">
-            <ol>
-              {story.timeline.map((item) => (
-                <li key={item.at} className="py-2 sm:flex sm:gap-5">
-                  <time className="tabular block pt-0.5 text-[12px] text-mute sm:w-[7.5rem] sm:shrink-0">
-                    {formatDateTime(new Date(item.at))}
-                  </time>
-                  <p className="mt-1 text-[14px] leading-relaxed sm:mt-0">{item.text}</p>
-                </li>
-              ))}
-            </ol>
+            {story.timeline.length === 0 ? (
+              <p className="text-[14px] text-mute">First seen {formatDateTime(new Date(story.firstSeenAt))}</p>
+            ) : (
+              <ol>
+                {story.timeline.map((item) => (
+                  <li key={item.at} className="py-2 sm:flex sm:gap-5">
+                    <time className="tabular block pt-0.5 text-[12px] text-mute sm:w-[7.5rem] sm:shrink-0">
+                      {formatDateTime(new Date(item.at))}
+                    </time>
+                    <p className="mt-1 text-[14px] leading-relaxed sm:mt-0">{item.text}</p>
+                  </li>
+                ))}
+              </ol>
+            )}
           </Section>
 
           <Section title="Draft">
-            <DraftEditor story={story} />
+            <DraftEditor
+              storyId={story.id}
+              draftId={story.draft.id}
+              initialTitle={story.draft.title}
+              initialDek={story.draft.dek}
+              initialBody={story.draft.body}
+              isPublished={story.published}
+              publishedSlug={story.publishedSlug}
+            />
           </Section>
         </div>
 
@@ -77,11 +146,13 @@ export function StoryWorkspace({ story }: { story: MockStory }) {
   );
 }
 
-function StoryHeader({ story }: { story: MockStory }) {
+function StoryHeader({ story }: { story: HydratedWorkspace }) {
+  const cat = categoryMeta[story.category] || { label: story.category, href: "/" };
+
   return (
     <header>
       <p className="lead-kicker">
-        {categoryMeta[story.category].label}
+        {cat.label}
         <span className="mx-1.5 text-faint">·</span>
         <StoryStatus status={story.status} />
         <span className="mx-1.5 text-faint">·</span>
@@ -99,10 +170,21 @@ function StoryHeader({ story }: { story: MockStory }) {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <section className="mt-8">
-      <h2 className="mb-2 text-[12px] text-faint">{title}</h2>
+      <div className="mb-2 flex items-baseline justify-between">
+        <h2 className="text-[12px] text-faint">{title}</h2>
+        {action}
+      </div>
       {children}
     </section>
   );
@@ -112,8 +194,8 @@ function LineList({ items, empty }: { items: string[]; empty: string }) {
   if (items.length === 0) return <p className="text-[14px] text-mute">{empty}</p>;
   return (
     <ul className="max-w-[58ch] space-y-2">
-      {items.map((item) => (
-        <li key={item} className="text-[15px] leading-[1.55]">
+      {items.map((item, idx) => (
+        <li key={idx} className="text-[15px] leading-[1.55]">
           {item}
         </li>
       ))}
@@ -126,7 +208,7 @@ function ClaimList({
   activeId,
   onSelect,
 }: {
-  claims: MockClaim[];
+  claims: HydratedWorkspace["claims"];
   activeId: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -171,7 +253,7 @@ export function SourceRail({
   sources,
   highlighted,
 }: {
-  sources: MockSource[];
+  sources: SourceViewItem[];
   highlighted: Set<string>;
 }) {
   const ordered = useMemo(() => {
@@ -192,7 +274,7 @@ export function SourceRail({
   );
 }
 
-function MobileSources({ sources, highlighted }: { sources: MockSource[]; highlighted: Set<string> }) {
+function MobileSources({ sources, highlighted }: { sources: SourceViewItem[]; highlighted: Set<string> }) {
   return (
     <div className="lg:hidden">
       <Dialog.Root>

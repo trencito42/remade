@@ -10,9 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "ingest": "tsx --env-file=.env scripts/ingest.ts",
-    "db:seed": "tsx --env-file=.env scripts/seed.ts",
-    "jobs": "tsx scripts/jobs.ts"
+    "ingest": "tsx --conditions=react-server --env-file=.env scripts/ingest.ts",
+    "db:seed": "tsx --conditions=react-server --env-file=.env scripts/seed.ts",
+    "jobs": "tsx --conditions=react-server --env-file=.env scripts/jobs.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.16",

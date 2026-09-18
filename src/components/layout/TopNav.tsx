@@ -32,6 +32,7 @@ export function TopNav({ variant }: { variant: "public" | "desk" }) {
       : [
           { href: "/newsroom", label: "Live" },
           { href: "/newsroom/sources", label: "Sources" },
+          { href: "/newsroom/health", label: "Health" },
         ];
 
   return (

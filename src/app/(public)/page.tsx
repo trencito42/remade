@@ -1,36 +1,40 @@
-import { ArticleList, EmptyState } from "@/components/news/ArticleList";
-import { categoryMeta } from "@/lib/mock/stories";
-import { listPublished } from "@/lib/db/queries";
-import { formatDate } from "@/lib/utils";
 import Link from "next/link";
+import { ArticleList, EmptyState } from "@/components/news/ArticleList";
+import { categoryMeta } from "@/lib/config/env";
+import { listPublishedArticles } from "@/features/publishing/repository";
+import { formatDate } from "@/lib/utils";
 import { SourceCluster } from "@/components/ui/SourceDetail";
 import { StoryStatus } from "@/components/newsroom/StoryStatus";
+import type { StoryStatus as StoryStatusType } from "@/types/domain";
 
 export const dynamic = "force-dynamic";
 
 const sections = [
-  { href: "/gaming", category: "gaming" as const, label: "Gaming" },
-  { href: "/hardware", category: "hardware" as const, label: "Hardware" },
-  { href: "/technology", category: "technology" as const, label: "Tech" },
-  { href: "/ai", category: "ai" as const, label: "AI" },
+  { href: "/gaming", category: "gaming", label: "Gaming" },
+  { href: "/hardware", category: "hardware", label: "Hardware" },
+  { href: "/technology", category: "technology", label: "Tech" },
+  { href: "/ai", category: "ai", label: "AI" },
 ];
 
 export default async function HomePage() {
-  let published = [] as Awaited<ReturnType<typeof listPublished>>;
-  try {
-    published = await listPublished();
-  } catch {
-    published = [];
-  }
+  const published = await listPublishedArticles(undefined, 30);
 
   const [lead, ...rest] = published;
   if (!lead) {
-    return <EmptyState>Nothing published yet. Fetch sources in the newsroom, then publish a cluster.</EmptyState>;
+    return (
+      <EmptyState>
+        No published stories yet. Articles will appear here once published from the newsroom.
+      </EmptyState>
+    );
   }
 
-  const developing = published.filter((story) => story.status === "developing" && story.id !== lead.id).slice(0, 3);
+  const developing = published
+    .filter((story) => story.status === "developing" && story.id !== lead.id)
+    .slice(0, 3);
   const latest = rest.slice(0, 5);
   const shown = new Set([lead.id, ...latest.map((story) => story.id)]);
+
+  const leadCat = categoryMeta[lead.category] ?? { label: lead.category, href: "/" };
 
   return (
     <div className="pt-5">
@@ -52,13 +56,13 @@ export default async function HomePage() {
 
       <article className="pb-10">
         <p className="lead-kicker">
-          {categoryMeta[lead.category].label}
+          {leadCat.label}
           <span className="mx-1.5 text-faint">·</span>
-          <StoryStatus status={lead.status} />
+          <StoryStatus status={lead.status as StoryStatusType} />
           <span className="mx-1.5 text-faint">·</span>
-          {lead.sourceCount} sources
+          {lead.sourceCount} {lead.sourceCount === 1 ? "source" : "sources"}
           <span className="mx-1.5 text-faint">·</span>
-          {formatDate(new Date(lead.lastUpdatedAt))}
+          {formatDate(new Date(lead.publishedAt))}
         </p>
         <h1 className="mt-2 max-w-[40rem] text-[30px] leading-[1.12] tracking-[-0.04em] text-pretty md:text-[36px]">
           <Link href={`/story/${lead.slug}`} className="row-title">
@@ -97,7 +101,10 @@ export default async function HomePage() {
 function SectionLabel({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <p className="mb-1">
-      <Link href={href} className="text-[12px] text-faint transition-colors duration-[160ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:text-ink">
+      <Link
+        href={href}
+        className="text-[12px] text-faint transition-colors duration-[160ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:text-ink"
+      >
         {children}
       </Link>
     </p>

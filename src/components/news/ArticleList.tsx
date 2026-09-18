@@ -1,13 +1,27 @@
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
-import { categoryMeta, type MockStory } from "@/lib/mock/stories";
+import { categoryMeta } from "@/lib/config/env";
 import { StoryStatus } from "@/components/newsroom/StoryStatus";
+import type { StoryStatus as StoryStatusType } from "@/types/domain";
+
+export type PublicArticleItem = {
+  id: string;
+  slug: string;
+  title: string;
+  dek: string;
+  category: string;
+  publishedAt: string;
+  updatedAt?: string;
+  lastUpdatedAt?: string;
+  sourceCount?: number;
+  status?: string;
+};
 
 export function ArticleList({
   stories,
   compact = false,
 }: {
-  stories: MockStory[];
+  stories: PublicArticleItem[];
   compact?: boolean;
 }) {
   return (
@@ -19,14 +33,26 @@ export function ArticleList({
   );
 }
 
-export function ArticleRow({ story, compact = false }: { story: MockStory; compact?: boolean }) {
+export function ArticleRow({
+  story,
+  compact = false,
+}: {
+  story: PublicArticleItem;
+  compact?: boolean;
+}) {
+  const cat = categoryMeta[story.category] ?? { label: story.category, href: "/" };
+  const dateStr = story.publishedAt || story.updatedAt || story.lastUpdatedAt || new Date().toISOString();
+
   return (
-    <Link href={`/story/${story.slug}`} className="row group flex items-start justify-between gap-4 py-2.5">
+    <Link
+      href={`/story/${story.slug}`}
+      className="row group flex items-start justify-between gap-4 py-2.5"
+    >
       <div className="min-w-0">
         <p className="row-meta">
-          {categoryMeta[story.category].label}
+          {cat.label}
           <span className="mx-1.5 text-faint">·</span>
-          {formatDate(new Date(story.lastUpdatedAt))}
+          {formatDate(new Date(dateStr))}
         </p>
         <h2 className={`mt-1 leading-snug ${compact ? "text-[15px]" : "text-[16px]"}`}>
           <span className="row-title">{story.title}</span>
@@ -36,9 +62,9 @@ export function ArticleRow({ story, compact = false }: { story: MockStory; compa
         )}
       </div>
       <p className="row-trail hidden shrink-0 pt-4 text-[12px] text-mute sm:block">
-        {story.sourceCount} sources
+        {story.sourceCount ?? 1} sources
         <span className="mx-1.5 text-faint">·</span>
-        <StoryStatus status={story.status} />
+        <StoryStatus status={(story.status as StoryStatusType) ?? "published"} />
       </p>
     </Link>
   );

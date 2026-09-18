@@ -45,7 +45,10 @@ export const sourceFeeds = pgTable(
     lastErrorAt: timestamp("last_error_at", { withTimezone: true }),
     articlesReceived: integer("articles_received").notNull().default(0),
   },
-  (t) => [index("source_feeds_source_idx").on(t.sourceId)],
+  (t) => [
+    index("source_feeds_source_idx").on(t.sourceId),
+    index("source_feeds_health_idx").on(t.enabled, t.lastCheckedAt),
+  ],
 );
 
 export const rawArticles = pgTable(
@@ -79,6 +82,7 @@ export const rawArticles = pgTable(
     index("raw_articles_content_hash_idx").on(t.contentHash),
     index("raw_articles_title_hash_idx").on(t.titleHash),
     index("raw_articles_published_idx").on(t.publishedAt),
+    index("raw_articles_status_idx").on(t.ingestionStatus, t.fetchedAt),
   ],
 );
 
@@ -96,7 +100,7 @@ export const storyClusters = pgTable(
     lastUpdatedAt: timestamp("last_updated_at", { withTimezone: true }).notNull(),
     confidence: real("confidence").notNull().default(0),
     sourceCount: integer("source_count").notNull().default(0),
-    parentStoryId: text("parent_story_id"),
+    parentStoryId: text("parent_story_id").references((): any => storyClusters.id, { onDelete: "set null" }),
     embedding: jsonb("embedding").$type<number[]>(),
     isSeed: boolean("is_seed").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
@@ -188,7 +192,7 @@ export const draftArticles = pgTable(
     editorNotes: text("editor_notes"),
     seoTitle: text("seo_title"),
     seoDescription: text("seo_description"),
-    editorialProfileId: text("editorial_profile_id"),
+    editorialProfileId: text("editorial_profile_id").references(() => editorialProfiles.id, { onDelete: "set null" }),
   },
   (t) => [index("draft_articles_story_idx").on(t.storyId)],
 );
@@ -219,6 +223,8 @@ export const publishedArticles = pgTable(
     uniqueIndex("published_articles_slug_idx").on(t.slug),
     index("published_articles_published_idx").on(t.publishedAt),
     index("published_articles_category_idx").on(t.category),
+    index("published_articles_category_date_idx").on(t.category, t.publishedAt),
+    index("published_articles_search_idx").on(t.searchText),
   ],
 );
 
@@ -323,6 +329,17 @@ export const jobRuns = pgTable(
     finishedAt: timestamp("finished_at", { withTimezone: true }),
   },
   (t) => [index("job_runs_name_idx").on(t.jobName)],
+);
+
+export const adminSessions = pgTable(
+  "admin_sessions",
+  {
+    id: text("id").primaryKey(),
+    tokenHash: text("token_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [uniqueIndex("admin_sessions_token_idx").on(t.tokenHash)],
 );
 
 export type ArticleBlock = {

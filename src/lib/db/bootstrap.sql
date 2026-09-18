@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS source_feeds (
   articles_received integer NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS source_feeds_source_idx ON source_feeds (source_id);
+CREATE INDEX IF NOT EXISTS source_feeds_health_idx ON source_feeds (enabled, last_checked_at);
 
 CREATE TABLE IF NOT EXISTS raw_articles (
   id text PRIMARY KEY,
@@ -53,6 +54,21 @@ CREATE UNIQUE INDEX IF NOT EXISTS raw_articles_source_external_idx ON raw_articl
 CREATE INDEX IF NOT EXISTS raw_articles_content_hash_idx ON raw_articles (content_hash);
 CREATE INDEX IF NOT EXISTS raw_articles_title_hash_idx ON raw_articles (title_hash);
 CREATE INDEX IF NOT EXISTS raw_articles_published_idx ON raw_articles (published_at);
+CREATE INDEX IF NOT EXISTS raw_articles_status_idx ON raw_articles (ingestion_status, fetched_at);
+
+CREATE TABLE IF NOT EXISTS editorial_profiles (
+  id text PRIMARY KEY,
+  name text NOT NULL,
+  language text NOT NULL,
+  tone text NOT NULL,
+  reading_level text NOT NULL,
+  headline_style text NOT NULL,
+  article_length text NOT NULL,
+  allowed_categories jsonb NOT NULL,
+  banned_phrases jsonb NOT NULL,
+  style_instructions text NOT NULL,
+  is_default boolean NOT NULL DEFAULT false
+);
 
 CREATE TABLE IF NOT EXISTS story_clusters (
   id text PRIMARY KEY,
@@ -66,7 +82,7 @@ CREATE TABLE IF NOT EXISTS story_clusters (
   last_updated_at timestamptz NOT NULL,
   confidence real NOT NULL DEFAULT 0,
   source_count integer NOT NULL DEFAULT 0,
-  parent_story_id text,
+  parent_story_id text REFERENCES story_clusters(id) ON DELETE SET NULL,
   embedding jsonb,
   is_seed boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL,
@@ -127,7 +143,7 @@ CREATE TABLE IF NOT EXISTS draft_articles (
   editor_notes text,
   seo_title text,
   seo_description text,
-  editorial_profile_id text
+  editorial_profile_id text REFERENCES editorial_profiles(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS draft_articles_story_idx ON draft_articles (story_id);
 
@@ -150,6 +166,8 @@ CREATE TABLE IF NOT EXISTS published_articles (
 CREATE UNIQUE INDEX IF NOT EXISTS published_articles_slug_idx ON published_articles (slug);
 CREATE INDEX IF NOT EXISTS published_articles_published_idx ON published_articles (published_at);
 CREATE INDEX IF NOT EXISTS published_articles_category_idx ON published_articles (category);
+CREATE INDEX IF NOT EXISTS published_articles_category_date_idx ON published_articles (category, published_at);
+CREATE INDEX IF NOT EXISTS published_articles_search_idx ON published_articles (search_text);
 
 CREATE TABLE IF NOT EXISTS tags (
   id text PRIMARY KEY,
@@ -186,20 +204,6 @@ CREATE TABLE IF NOT EXISTS story_entities (
   PRIMARY KEY (story_id, entity_id)
 );
 
-CREATE TABLE IF NOT EXISTS editorial_profiles (
-  id text PRIMARY KEY,
-  name text NOT NULL,
-  language text NOT NULL,
-  tone text NOT NULL,
-  reading_level text NOT NULL,
-  headline_style text NOT NULL,
-  article_length text NOT NULL,
-  allowed_categories jsonb NOT NULL,
-  banned_phrases jsonb NOT NULL,
-  style_instructions text NOT NULL,
-  is_default boolean NOT NULL DEFAULT false
-);
-
 CREATE TABLE IF NOT EXISTS ai_runs (
   id text PRIMARY KEY,
   task text NOT NULL,
@@ -226,3 +230,11 @@ CREATE TABLE IF NOT EXISTS job_runs (
   finished_at timestamptz
 );
 CREATE INDEX IF NOT EXISTS job_runs_name_idx ON job_runs (job_name);
+
+CREATE TABLE IF NOT EXISTS admin_sessions (
+  id text PRIMARY KEY,
+  token_hash text NOT NULL,
+  created_at timestamptz NOT NULL,
+  expires_at timestamptz NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS admin_sessions_token_idx ON admin_sessions (token_hash);

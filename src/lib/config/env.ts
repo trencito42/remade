@@ -12,6 +12,7 @@ const schema = z.object({
   PGLITE_DATA_DIR: z.string().optional(),
   SITE_URL: z.string().optional(),
   SITE_NAME: z.string().optional(),
+  ADMIN_PASSWORD: z.string().optional(),
 });
 
 export type AppEnv = {
@@ -23,6 +24,7 @@ export type AppEnv = {
   pgliteDir: string;
   siteUrl: string;
   siteName: string;
+  adminPassword: string;
 };
 
 export function getEnv(): AppEnv {
@@ -30,12 +32,13 @@ export function getEnv(): AppEnv {
   return {
     aiBaseUrl: parsed.AI_BASE_URL || parsed.BUYTOKENS_BASE_URL || "",
     aiApiKey: parsed.AI_API_KEY || parsed.BUYTOKENS_API_KEY || "",
-    aiModel: parsed.AI_MODEL || parsed.BUYTOKENS_MODEL || "",
+    aiModel: parsed.AI_MODEL || parsed.BUYTOKENS_MODEL || "gpt-5.6-sol",
     aiEmbeddingModel: parsed.AI_EMBEDDING_MODEL || "text-embedding-3-small",
     databaseUrl: parsed.DATABASE_URL || undefined,
     pgliteDir: parsed.PGLITE_DATA_DIR || "./data/dispatch",
     siteUrl: parsed.SITE_URL || "http://localhost:3002",
     siteName: parsed.SITE_NAME || "Dispatch",
+    adminPassword: parsed.ADMIN_PASSWORD || "dispatch-admin-2026",
   };
 }
 
@@ -59,4 +62,11 @@ export const categoryLabels: Record<Category, string> = {
   hardware: "Hardware",
   technology: "Technology",
   ai: "AI",
+};
+
+export const categoryMeta: Record<string, { label: string; href: string }> = {
+  gaming: { label: "Gaming", href: "/gaming" },
+  hardware: { label: "Hardware", href: "/hardware" },
+  technology: { label: "Tech", href: "/technology" },
+  ai: { label: "AI", href: "/ai" },
 };

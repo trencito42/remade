@@ -31,6 +31,14 @@ async function createDb(): Promise<AppDb> {
   } else {
     const dir = path.resolve(env.pgliteDir);
     fs.mkdirSync(dir, { recursive: true });
+    const pidFile = path.join(dir, "postmaster.pid");
+    if (fs.existsSync(pidFile)) {
+      try {
+        fs.unlinkSync(pidFile);
+      } catch {
+        // ignore
+      }
+    }
     const pglite = new PGlite(dir);
     await pglite.waitReady;
     if (!bootstrapped) {

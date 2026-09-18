@@ -10,11 +10,17 @@ export function normalizeTitle(title: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
+function stemToken(token: string) {
+  if (token.length <= 3) return token;
+  return token.replace(/(ing|ed|es|s)$/, "");
+}
+
 export function titleTokens(title: string) {
-  const stop = new Set(["the", "a", "an", "to", "of", "for", "and", "in", "on", "at", "with"]);
+  const stop = new Set(["the", "a", "an", "to", "of", "for", "and", "in", "on", "at", "with", "by", "from", "is", "as"]);
   return normalizeTitle(title)
     .split(" ")
-    .filter((token) => token.length > 1 && !stop.has(token));
+    .filter((token) => token.length > 1 && !stop.has(token))
+    .map(stemToken);
 }
 
 export function jaccard(a: string[], b: string[]) {

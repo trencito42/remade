@@ -4,14 +4,25 @@ import { useEffect, useState } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import * as Dialog from "@radix-ui/react-dialog";
 import { formatDateTime } from "@/lib/utils";
-import type { MockSource } from "@/lib/mock/stories";
 import { SourceBadge } from "@/components/source/SourceBadge";
+
+export type SourceViewItem = {
+  id: string;
+  name: string;
+  tier: number;
+  publishedAt: string;
+  url: string;
+  title: string;
+  isPrimary: boolean;
+  relationship: string;
+  excerpt?: string | null;
+};
 
 export function SourceDetail({
   source,
   dimmed = false,
 }: {
-  source: MockSource;
+  source: SourceViewItem;
   dimmed?: boolean;
 }) {
   const [compact, setCompact] = useState(false);
@@ -74,7 +85,7 @@ export function SourceDetail({
   );
 }
 
-function SourceBody({ source }: { source: MockSource }) {
+function SourceBody({ source }: { source: SourceViewItem }) {
   return (
     <div className="px-2 pb-1 pt-1">
       <p className="text-[12px] leading-relaxed text-mute">{source.title}</p>
@@ -90,7 +101,7 @@ function SourceBody({ source }: { source: MockSource }) {
   );
 }
 
-export function SourceCluster({ sources }: { sources: MockSource[] }) {
+export function SourceCluster({ sources }: { sources: SourceViewItem[] }) {
   const names = sources.slice(0, 3).map((source) => source.name).join(", ");
   const extra = sources.length > 3 ? ` +${sources.length - 3}` : "";
 

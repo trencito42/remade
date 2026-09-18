@@ -49,7 +49,16 @@ export function clusterScore(input: {
 
 export function looksLikeChildUpdate(title: string) {
   const tokens = titleTokens(title);
-  return clusteringConfig.childUpdateTitleHints.some((hint) => tokens.includes(hint));
+  return clusteringConfig.childUpdateTitleHints.some((hint) => {
+    const stemmedHint = hint.replace(/(ing|ed|es|s)$/, "");
+    return tokens.some(
+      (token) =>
+        token === hint ||
+        token === stemmedHint ||
+        token.startsWith(stemmedHint) ||
+        stemmedHint.startsWith(token)
+    );
+  });
 }
 
 export type MatchDecision = "attach" | "create" | "ambiguous" | "child";

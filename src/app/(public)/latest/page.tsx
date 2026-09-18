@@ -1,8 +1,9 @@
 import { StoryIndex } from "@/components/news/StoryIndex";
-import { listPublished } from "@/lib/db/queries";
+import { listPublishedArticles } from "@/features/publishing/repository";
 
 export const dynamic = "force-dynamic";
 
 export default async function LatestPage() {
-  return <StoryIndex title="Latest" stories={await listPublished()} />;
+  const stories = await listPublishedArticles(undefined, 50);
+  return <StoryIndex title="Latest" stories={stories} />;
 }
