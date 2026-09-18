@@ -27,6 +27,7 @@ class OpenAiCompatibleProvider implements AiProvider {
   private readonly apiKey: string;
   private readonly baseUrl: string;
   private readonly defaultModel: string;
+  private discoveredModel: string | null = null;
 
   constructor(opts: { name: string; apiKey: string; baseUrl: string; defaultModel: string }) {
     this.name = opts.name;
@@ -40,7 +41,7 @@ class OpenAiCompatibleProvider implements AiProvider {
     temperature?: number;
   }): Promise<{ text: string; usage: AiUsage }> {
     const started = Date.now();
-    const model = opts?.modelOverride ?? this.defaultModel;
+    const model = opts?.modelOverride ?? this.discoveredModel ?? this.defaultModel;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 90_000);
     let response: Response;
@@ -66,6 +67,30 @@ class OpenAiCompatibleProvider implements AiProvider {
 
     if (!response.ok) {
       const body = await response.text();
+      const explicitModel =
+        Boolean(opts?.modelOverride) ||
+        Boolean(process.env.BUYTOKENS_MODEL) ||
+        Boolean(process.env.AI_MODEL) ||
+        Boolean(process.env.OPENAI_MODEL);
+      if (!explicitModel && /model/i.test(body)) {
+        try {
+          const modelsRes = await fetch(`${this.baseUrl}/models`, {
+            headers: { Authorization: `Bearer ${this.apiKey}`, Accept: "application/json" },
+            cache: "no-store",
+          });
+          if (modelsRes.ok) {
+            const models = (await modelsRes.json()) as { data?: { id?: string }[] };
+            const ids = (models.data ?? []).map((x) => x.id).filter((x): x is string => Boolean(x));
+            const preferred = ids.find((id) => /sonnet|claude|gpt-5|gpt-4\.1|gemini/i.test(id)) ?? ids[0];
+            if (preferred && preferred !== model) {
+              this.discoveredModel = preferred;
+              return this.completeText(messages, { ...opts, modelOverride: preferred });
+            }
+          }
+        } catch {
+          // Preserve the original provider error below.
+        }
+      }
       throw new Error(`${this.name} AI error (${response.status}): ${body.slice(0, 300)}`);
     }
 
