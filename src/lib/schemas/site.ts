@@ -95,6 +95,21 @@ export const DesignSystemSchema = z.object({
 
 export type DesignSystem = z.infer<typeof DesignSystemSchema>;
 
+export const FlexibleContentSectionSchema = z.object({
+  type: z.literal("content"),
+  variant: z.string(),
+  eyebrow: z.string().nullable().default(null),
+  title: z.string(),
+  body: z.string().nullable().default(null),
+  items: z.array(z.object({
+    title: z.string().nullable().default(null),
+    body: z.string(),
+    meta: z.string().nullable().default(null),
+  })).default([]),
+  mediaUrl: z.string().nullable().default(null),
+  cta: z.object({ label: z.string(), href: z.string() }).nullable().default(null),
+});
+
 export const SiteSectionSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("nav"),
@@ -134,6 +149,7 @@ export const SiteSectionSchema = z.discriminatedUnion("type", [
     type: z.literal("footer"),
     text: z.string(),
   }),
+  FlexibleContentSectionSchema,
 ]);
 
 export const SiteDocumentSchema = z.object({
