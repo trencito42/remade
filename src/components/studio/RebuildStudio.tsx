@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { WorkingState } from "@/components/workflow/WorkingState";
 
 type Version = {
   id: string;
@@ -205,17 +206,26 @@ export function RebuildStudio({ projectId }: { projectId: string }) {
       </div>
 
       {building ? (
-        <ol className="stage-list compact">
-          {stages.map((stage) => (
-            <li key={stage.name + stage.label} data-status={stage.status}>
-              <span className="stage-marker" aria-hidden />
-              <p className="stage-label">{stage.label}</p>
-            </li>
-          ))}
-        </ol>
+        <WorkingState
+          eyebrow={status === "qa" ? "Quality review" : "Build"}
+          title={status === "qa" ? "Critiquing the result" : "Rebuilding your site"}
+          description={
+            status === "qa"
+              ? "Remade is reviewing hierarchy, rhythm, conversion clarity, and mobile composition, then repairing what misses the brief."
+              : "Remade is composing the selected direction into a real site, applying the design system and preserving verified business facts."
+          }
+          stages={stages}
+          currentStage={stages.find((stage) => stage.status === "running")?.name ?? null}
+          error={error}
+          meta={[
+            { label: "Device priority", value: "390px first" },
+            { label: "Versions", value: String(versions.length) },
+            { label: "QA passes", value: String(reviews.length) },
+          ]}
+        />
       ) : null}
 
-      <div className={`preview-stage ${device}`}>
+      {!building ? <div className={`preview-stage ${device}`}>
         <iframe
           title="Website preview"
           className="site-preview"
@@ -223,9 +233,9 @@ export function RebuildStudio({ projectId }: { projectId: string }) {
           sandbox={mode === "rebuilt" ? "allow-same-origin" : undefined}
           referrerPolicy="no-referrer"
         />
-      </div>
+      </div> : null}
 
-      <div className="studio-panels">
+      {!building ? <div className="studio-panels">
         <section>
           <h2>Edit with AI</h2>
           <div className="transcript compact">
@@ -300,9 +310,9 @@ export function RebuildStudio({ projectId }: { projectId: string }) {
             </p>
           ) : null}
         </section>
-      </div>
+      </div> : null}
 
-      {error ? <p className="intake-error">{error}</p> : null}
+      {!building && error ? <p className="intake-error">{error}</p> : null}
     </div>
   );
 }
