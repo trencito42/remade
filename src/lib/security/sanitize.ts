@@ -40,3 +40,14 @@ export function wrapUntrustedWebsiteContent(content: string): string {
     "<<<END_UNTRUSTED_WEBSITE_CONTENT>>>",
   ].join("\n");
 }
+
+
+/** Keep generated CSS presentation-only and prevent external fetch/exfil primitives. */
+export function sanitizeGeneratedCss(css: string): string {
+  return css
+    .replace(/@import[^;]+;?/gi, "")
+    .replace(/url\s*\([^)]*\)/gi, "none")
+    .replace(/expression\s*\([^)]*\)/gi, "")
+    .replace(/javascript\s*:/gi, "")
+    .slice(0, 20_000);
+}
