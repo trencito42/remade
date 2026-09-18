@@ -140,8 +140,11 @@ export class AiProvider {
     return input.schema.parse(parsedJson);
   }
 
+  private static embeddingsSupported: boolean | null = null;
+
   async embed(texts: string[], task: AiTask = "embed_text"): Promise<number[][] | null> {
     if (!this.available) return null;
+    if (AiProvider.embeddingsSupported === false) return null;
 
     try {
       const correlationId = crypto.randomUUID();
@@ -157,8 +160,13 @@ export class AiProvider {
       });
 
       if (!raw.data || !Array.isArray(raw.data)) return null;
+      AiProvider.embeddingsSupported = true;
       return (raw.data as Array<{ embedding: number[] }>).map((row) => row.embedding);
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("404") || msg.includes("Not found")) {
+        AiProvider.embeddingsSupported = false;
+      }
       // Graceful degradation when embeddings are not supported by the provider
       return null;
     }
