@@ -1,5 +1,6 @@
 import type { SiteDocument, VisualIssue } from "@/lib/schemas/site";
 import { SiteDocumentSchema } from "@/lib/schemas/site";
+import { completeJson } from "@/lib/ai/provider";
 
 /**
  * Surgical repair — changes only what issues require.
@@ -75,4 +76,57 @@ export function repairSiteDocument(
     site: SiteDocumentSchema.parse(next),
     changelog,
   };
+}
+
+
+export async function repairSiteDocumentWithAi(input: {
+  projectId: string;
+  site: SiteDocument;
+  issues: VisualIssue[];
+}): Promise<{ site: SiteDocument; changelog: string[] }> {
+  const fallback = repairSiteDocument(input.site, input.issues);
+  try {
+    const result = await completeJson<{ site: SiteDocument; changelog: string[] }>({
+      projectId: input.projectId,
+      task: "repair",
+      temperature: 0.2,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "Repair a generated website surgically from the supplied QA issues.",
+            "Return JSON only with {site, changelog}.",
+            "Preserve unrelated content, structure and design decisions.",
+            "You may adjust flexible sections and customCss to fix composition and responsive problems.",
+            "Prioritize 390px mobile correctness, then desktop.",
+            "Do not invent business facts or social proof.",
+            "If an issue is not safely repairable from available facts, leave the content intact and fix presentation only.",
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            currentSite: input.site,
+            issues: input.issues,
+            fallbackExample: fallback,
+          }),
+        },
+      ],
+      parseJson: (raw) => {
+        const start = raw.indexOf("{");
+        const end = raw.lastIndexOf("}");
+        const slice = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
+        const parsed = JSON.parse(slice) as { site: unknown; changelog?: unknown };
+        return {
+          site: SiteDocumentSchema.parse(parsed.site),
+          changelog: Array.isArray(parsed.changelog)
+            ? parsed.changelog.filter((x): x is string => typeof x === "string").slice(0, 20)
+            : ["Applied AI repair."],
+        };
+      },
+    });
+    return result?.data ?? fallback;
+  } catch {
+    return fallback;
+  }
 }
