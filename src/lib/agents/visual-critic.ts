@@ -1,7 +1,7 @@
 import type { CreativeBrief, StyleDNA } from "@/lib/schemas/style-dna";
 import { z } from "zod";
 import { VisualIssueSchema, type SiteDocument, type VisualIssue } from "@/lib/schemas/site";
-import { completeJson } from "@/lib/ai/provider";
+import { completeJson, getConfiguredProvider } from "@/lib/ai/provider";
 import { detectSlop } from "@/lib/agents/slop-detector";
 
 export type CritiqueResult = {
