@@ -218,9 +218,10 @@ export function renderConceptPreviewHtml(
   const p = concept.preview;
   const width = viewport === "mobile" ? 390 : 1440;
 
+  const previewBlocks = p.blocks ?? [];
   const legacyBlocks =
-    p.blocks.length > 0
-      ? p.blocks
+    previewBlocks.length > 0
+      ? previewBlocks
       : [
           ...(p.nav
             ? [{
@@ -516,7 +517,7 @@ ${sanitizeGeneratedCss(concept.previewCss ?? "")}
 </style>
 </head>
 <body>
-  <main class="canvas layout-${classToken(p.layout)}">
+  <main class="canvas layout-${classToken(p.layout ?? "legacy")}">
     ${blocks}
   </main>
 </body>
