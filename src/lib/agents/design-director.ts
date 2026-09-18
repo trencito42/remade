@@ -6,6 +6,7 @@ import {
   type CreativeBrief,
 } from "@/lib/schemas/style-dna";
 import { retrieveReferences } from "@/lib/references/library";
+import { completeJson } from "@/lib/ai/provider";
 
 const UNIVERSAL_AVOIDS = [
   "NO generic SaaS hero with gradient mesh",
@@ -87,4 +88,47 @@ export function runDesignDirector(input: {
         : "No matching references — invent carefully from business fit.",
     ].join(" "),
   });
+}
+
+
+export async function runDesignDirectorWithAi(input: {
+  projectId: string;
+  profile: BusinessProfile;
+  research: ResearchBrief;
+  interview: UnderstandingSummary | null;
+}): Promise<CreativeBrief> {
+  const fallback = runDesignDirector(input);
+  try {
+    const result = await completeJson<CreativeBrief>({
+      projectId: input.projectId,
+      task: "design_direction",
+      temperature: 0.55,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are a world-class web design director creating a bespoke creative brief.",
+            "Return JSON only matching the supplied CreativeBrief example.",
+            "Do not select from preset styles. Derive visual personality, layout, typography, imagery, motion, navigation and section rhythm from this business, audience, content and owner intent.",
+            "The brief must support mobile-first composition and may be restrained, maximal, editorial, utilitarian, playful, luxury, brutalist, cinematic or something else when justified.",
+            "Avoid generic AI aesthetics by context, not by banning legitimate techniques.",
+            "Never invent facts or proof.",
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: JSON.stringify({ business: input.profile, research: input.research, ownerInterview: input.interview, validExample: fallback }),
+        },
+      ],
+      parseJson: (raw) => {
+        const start = raw.indexOf("{");
+        const end = raw.lastIndexOf("}");
+        const slice = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
+        return CreativeBriefSchema.parse(JSON.parse(slice));
+      },
+    });
+    return result?.data ?? fallback;
+  } catch {
+    return fallback;
+  }
 }
