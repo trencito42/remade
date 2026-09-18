@@ -169,6 +169,9 @@ export async function implementWebsiteWithAi(input: {
             "Do not invent testimonials, ratings, awards, years, prices, customer counts, addresses, opening hours or certifications.",
             "Make the mobile hierarchy excellent first. Avoid generic AI startup aesthetics and repetitive card layouts.",
             "Keep the selected Style DNA recognizable and specific to this business.",
+            "Use flexible content sections whenever the business needs things like menu, FAQ, gallery, team, pricing, process, portfolio, features or other structures.",
+            "Populate customCss with self-contained responsive CSS that art-directs this specific site beyond the neutral renderer. No @import, no url(), no external fetches.",
+            "Do not force nav/hero/services/about/contact/footer when another information architecture fits better, but keep a clear conversion destination.",
           ].join(" "),
         },
         {
