@@ -1,11 +1,16 @@
 export type AiTask =
   | "extraction"
   | "interview"
+  | "interview_question"
   | "research"
   | "design_direction"
+  | "concepts"
+  | "design_system"
+  | "implementation"
   | "coding"
   | "visual_critique"
-  | "repair";
+  | "repair"
+  | "edit";
 
 export type AiMessage = {
   role: "system" | "user" | "assistant";
