@@ -17,12 +17,37 @@ export const ResearchBriefSchema = z.object({
 
 export type ResearchBrief = z.infer<typeof ResearchBriefSchema>;
 
+export const ConceptPreviewBlockSchema = z.object({
+  kind: z.enum([
+    "nav",
+    "headline",
+    "text",
+    "media",
+    "list",
+    "ticker",
+    "data",
+    "feature",
+    "quote",
+    "cta",
+    "split",
+  ]),
+  variant: z.string().default("default"),
+  eyebrow: z.string().nullable().default(null),
+  title: z.string().nullable().default(null),
+  body: z.string().nullable().default(null),
+  items: z.array(z.string()).default([]),
+  meta: z.string().nullable().default(null),
+  cta: z.string().nullable().default(null),
+});
+
 export const ConceptPreviewSchema = z.object({
+  layout: z.string().default("freeform"),
+  blocks: z.array(ConceptPreviewBlockSchema).max(8).default([]),
   nav: z.object({
     brand: z.string(),
     links: z.array(z.string()),
     cta: z.string().nullable(),
-  }),
+  }).optional(),
   hero: z.object({
     eyebrow: z.string().nullable(),
     headline: z.string(),
@@ -32,12 +57,12 @@ export const ConceptPreviewSchema = z.object({
     secondaryCta: z.string().nullable(),
     secondaryHref: z.string().nullable().default(null),
     mediaLabel: z.string().nullable(),
-  }),
+  }).optional(),
   section: z.object({
     title: z.string(),
     body: z.string(),
     items: z.array(z.string()).default([]),
-  }),
+  }).optional(),
 });
 
 export const ConceptSchema = z.object({
