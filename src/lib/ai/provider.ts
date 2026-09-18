@@ -100,23 +100,13 @@ class OpenAiCompatibleProvider implements AiProvider {
 export function getConfiguredProvider(): AiProvider | null {
   // BuyTokens is the preferred production provider. Keep generic OpenAI-compatible
   // aliases so local/dev deployments do not need code changes.
-  const buyTokensKey = process.env.BUYTOKENS_API_KEY;
+  const buyTokensKey = process.env.BUYTOKENS_API_KEY ?? process.env.AI_API_KEY ?? process.env.OPENAI_API_KEY;
   if (buyTokensKey) {
     return new OpenAiCompatibleProvider({
       name: "buytokens",
       apiKey: buyTokensKey,
-      baseUrl: process.env.BUYTOKENS_BASE_URL ?? "http://185.221.214.224:4100/v1",
-      defaultModel: process.env.BUYTOKENS_MODEL ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini",
-    });
-  }
-
-  const openaiKey = process.env.OPENAI_API_KEY;
-  if (openaiKey) {
-    return new OpenAiCompatibleProvider({
-      name: process.env.OPENAI_BASE_URL?.includes("185.221.214.224") ? "buytokens" : "openai-compatible",
-      apiKey: openaiKey,
-      baseUrl: process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
-      defaultModel: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+      baseUrl: process.env.BUYTOKENS_BASE_URL ?? process.env.OPENAI_BASE_URL ?? "http://185.221.214.224:4100/v1",
+      defaultModel: process.env.BUYTOKENS_MODEL ?? process.env.AI_MODEL ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini",
     });
   }
 
