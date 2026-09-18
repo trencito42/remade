@@ -6,7 +6,7 @@ import {
   type CreativeBrief,
 } from "@/lib/schemas/style-dna";
 import { retrieveReferences } from "@/lib/references/library";
-import { completeJson } from "@/lib/ai/provider";
+import { completeJson, getConfiguredProvider } from "@/lib/ai/provider";
 
 const UNIVERSAL_AVOIDS = [
   "NO generic SaaS hero with gradient mesh",
@@ -128,7 +128,8 @@ export async function runDesignDirectorWithAi(input: {
       },
     });
     return result?.data ?? fallback;
-  } catch {
+  } catch (error) {
+    if (getConfiguredProvider()) throw error;
     return fallback;
   }
 }
