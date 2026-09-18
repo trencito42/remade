@@ -1,6 +1,7 @@
 import type { BusinessProfile } from "@/lib/schemas/business";
 import type { UnderstandingSummary } from "@/lib/schemas/interview";
 import type { StyleDNA } from "@/lib/schemas/style-dna";
+import { completeJson } from "@/lib/ai/provider";
 import {
   SiteDocumentSchema,
   type DesignSystem,
@@ -140,4 +141,59 @@ export function assertContentIntegrity(site: SiteDocument): {
     problems.push(...site.contentIntegrity.inventedFacts);
   }
   return { ok: problems.length === 0, problems };
+}
+
+
+/** AI implementation with strict schema + factual fallback. */
+export async function implementWebsiteWithAi(input: {
+  projectId: string;
+  profile: BusinessProfile;
+  interview: UnderstandingSummary | null;
+  styleDna: StyleDNA;
+  designSystem: DesignSystem;
+  sourceUrl: string;
+}): Promise<SiteDocument> {
+  const fallback = implementWebsite(input);
+  try {
+    const result = await completeJson<SiteDocument>({
+      projectId: input.projectId,
+      task: "implementation",
+      temperature: 0.55,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are a senior product designer and conversion copywriter building a real small-business website.",
+            "Return ONLY a SiteDocument JSON object matching the supplied example shape.",
+            "Use only facts from the business profile or confirmed owner interview.",
+            "Do not invent testimonials, ratings, awards, years, prices, customer counts, addresses, opening hours or certifications.",
+            "Make the mobile hierarchy excellent first. Avoid generic AI startup aesthetics and repetitive card layouts.",
+            "Keep the selected Style DNA recognizable and specific to this business.",
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            business: input.profile,
+            ownerInterview: input.interview,
+            styleDna: input.styleDna,
+            designSystem: input.designSystem,
+            sourceUrl: input.sourceUrl,
+            validExample: fallback,
+          }),
+        },
+      ],
+      parseJson: (raw) => {
+        const start = raw.indexOf("{");
+        const end = raw.lastIndexOf("}");
+        const slice = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
+        return SiteDocumentSchema.parse(JSON.parse(slice));
+      },
+    });
+    const site = result?.data ?? fallback;
+    const integrity = assertContentIntegrity(site);
+    return integrity.ok ? site : fallback;
+  } catch {
+    return fallback;
+  }
 }
