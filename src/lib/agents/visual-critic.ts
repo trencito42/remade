@@ -60,8 +60,8 @@ export function critiqueRenderedSite(input: {
   if (
     heroSection &&
     heroSection.type === "hero" &&
-    heroSection.primaryHref.startsWith("#") &&
-    !html.includes(`id="${heroSection.primaryHref.slice(1)}"`)
+    (heroSection.primaryHref ?? "#contact").startsWith("#") &&
+    !html.includes(`id="${(heroSection.primaryHref ?? "#contact").slice(1)}"`)
   ) {
     issues.push({
       severity: "major",
