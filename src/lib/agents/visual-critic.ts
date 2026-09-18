@@ -1,9 +1,11 @@
 import type { CreativeBrief, StyleDNA } from "@/lib/schemas/style-dna";
-import type { SiteDocument, VisualIssue } from "@/lib/schemas/site";
+import { z } from "zod";
+import { VisualIssueSchema, type SiteDocument, type VisualIssue } from "@/lib/schemas/site";
+import { completeJson } from "@/lib/ai/provider";
 import { detectSlop } from "@/lib/agents/slop-detector";
 
 export type CritiqueResult = {
-  method: "structural";
+  method: "structural" | "ai";
   passed: boolean;
   issues: VisualIssue[];
   summary: {
@@ -119,4 +121,74 @@ export function critiqueRenderedSite(input: {
         .map((i) => i.observation),
     },
   };
+}
+
+
+export async function critiqueRenderedSiteWithAi(input: {
+  projectId: string;
+  site: SiteDocument;
+  html: string;
+  brief: CreativeBrief | null;
+  styleDna: StyleDNA;
+}): Promise<CritiqueResult> {
+  const structural = critiqueRenderedSite(input);
+  try {
+    const result = await completeJson<VisualIssue[]>({
+      projectId: input.projectId,
+      task: "visual_critique",
+      temperature: 0.2,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are a senior web design critic reviewing a real generated site.",
+            "Judge mobile 390px first, then desktop 1440px.",
+            "Find concrete problems in hierarchy, composition, readability, CTA clarity, rhythm, business fit and generic AI patterns.",
+            "Do not ban gradients, glass, cards, asymmetry or any motif in isolation. Only flag them when contextually wrong, repetitive or harmful.",
+            "Never request fabricated social proof.",
+            "Return only a JSON array matching the issue examples.",
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            creativeBrief: input.brief,
+            styleDna: input.styleDna,
+            site: input.site,
+            renderedHtml: input.html.slice(0, 50000),
+            issueExamples: structural.issues.slice(0, 5),
+          }),
+        },
+      ],
+      parseJson: (raw) => {
+        const start = raw.indexOf("[");
+        const end = raw.lastIndexOf("]");
+        const slice = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
+        return z.array(VisualIssueSchema).max(12).parse(JSON.parse(slice));
+      },
+    });
+    if (!result) return structural;
+    const merged = [...structural.issues, ...result.data];
+    const seen = new Set<string>();
+    const issues = merged.filter((i) => {
+      const key = `${i.category}:${i.observation.toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const blockers = issues.filter((i) => i.severity === "blocker").length;
+    const majors = issues.filter((i) => i.severity === "major").length;
+    return {
+      method: "ai",
+      passed: blockers === 0 && majors <= 1,
+      issues,
+      summary: {
+        hierarchyNotes: issues.filter((i) => ["hierarchy", "cta", "conversion"].includes(i.category)).map((i) => i.observation),
+        mobileNotes: issues.filter((i) => i.viewport === "390").map((i) => i.observation),
+        consistencyNotes: issues.filter((i) => ["consistency", "rhythm", "ai_slop", "repetition", "business_fit"].includes(i.category)).map((i) => i.observation),
+      },
+    };
+  } catch {
+    return structural;
+  }
 }
