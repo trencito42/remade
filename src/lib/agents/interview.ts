@@ -345,7 +345,14 @@ export async function selectNextQuestionsWithAi(input: {
         const start = raw.indexOf("[");
         const end = raw.lastIndexOf("]");
         const slice = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
-        const parsed = JSON.parse(slice) as unknown;\n        if (!Array.isArray(parsed)) return z.array(InterviewQuestionSchema).parse(parsed);\n        return z.array(InterviewQuestionSchema).max(input.limit ?? 1).parse(parsed.map(normalizeInterviewQuestion));
+        const parsed = JSON.parse(slice) as unknown;
+        if (!Array.isArray(parsed)) {
+          return z.array(InterviewQuestionSchema).parse(parsed);
+        }
+        return z
+          .array(InterviewQuestionSchema)
+          .max(input.limit ?? 1)
+          .parse(parsed.map(normalizeInterviewQuestion));
       },
     });
     return result?.data?.length ? result.data : fallback;
