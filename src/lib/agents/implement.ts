@@ -8,6 +8,130 @@ import {
   type SiteDocument,
 } from "@/lib/schemas/site";
 
+function textValue(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (!value || typeof value !== "object") return null;
+
+  const record = value as Record<string, unknown>;
+  for (const key of ["label", "title", "name", "text", "value"]) {
+    if (typeof record[key] === "string") return record[key] as string;
+  }
+
+  return null;
+}
+
+function normalizeSiteDocument(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") return raw;
+  const doc = structuredClone(raw) as Record<string, unknown>;
+
+  if (!Array.isArray(doc.sections)) return doc;
+
+  doc.sections = doc.sections.map((sectionValue) => {
+    if (!sectionValue || typeof sectionValue !== "object") return sectionValue;
+    const section = sectionValue as Record<string, unknown>;
+    const type = section.type;
+
+    if (type === "nav") {
+      const links = Array.isArray(section.links)
+        ? section.links
+            .map((link) => textValue(link))
+            .filter((link): link is string => Boolean(link))
+        : [];
+
+      return {
+        ...section,
+        links,
+        cta: textValue(section.cta),
+      };
+    }
+
+    if (type === "services") {
+      const items = Array.isArray(section.items)
+        ? section.items.map((itemValue) => {
+            if (typeof itemValue === "string") {
+              return { title: itemValue, body: "" };
+            }
+            if (!itemValue || typeof itemValue !== "object") {
+              return { title: "", body: "" };
+            }
+            const item = itemValue as Record<string, unknown>;
+            return {
+              ...item,
+              title: textValue(item.title) ?? "",
+              body: textValue(item.body) ?? "",
+            };
+          })
+        : [];
+
+      return { ...section, items };
+    }
+
+    if (type === "contact") {
+      return {
+        ...section,
+        phone: textValue(section.phone),
+        email: textValue(section.email),
+        cta: textValue(section.cta) ?? "Contact",
+      };
+    }
+
+    if (type === "hero") {
+      return {
+        ...section,
+        eyebrow: textValue(section.eyebrow),
+        headline: textValue(section.headline) ?? "",
+        subhead: textValue(section.subhead) ?? "",
+        primaryCta: textValue(section.primaryCta) ?? "Learn more",
+        secondaryCta: textValue(section.secondaryCta),
+        mediaLabel: textValue(section.mediaLabel),
+      };
+    }
+
+    if (type === "content") {
+      const items = Array.isArray(section.items)
+        ? section.items.map((itemValue) => {
+            if (typeof itemValue === "string") {
+              return { title: null, body: itemValue, meta: null };
+            }
+            if (!itemValue || typeof itemValue !== "object") {
+              return { title: null, body: "", meta: null };
+            }
+            const item = itemValue as Record<string, unknown>;
+            return {
+              ...item,
+              title: textValue(item.title),
+              body: textValue(item.body) ?? "",
+              meta: textValue(item.meta),
+            };
+          })
+        : [];
+
+      const cta =
+        section.cta && typeof section.cta === "object"
+          ? {
+              label: textValue((section.cta as Record<string, unknown>).label) ?? "Learn more",
+              href:
+                textValue((section.cta as Record<string, unknown>).href) ??
+                "#contact",
+            }
+          : null;
+
+      return {
+        ...section,
+        eyebrow: textValue(section.eyebrow),
+        body: textValue(section.body),
+        mediaUrl: textValue(section.mediaUrl),
+        items,
+        cta,
+      };
+    }
+
+    return section;
+  });
+
+  return doc;
+}
+
 /**
  * Implementation Agent — produces a structured SiteDocument.
  * Never invents testimonials, awards, years, prices, or fake stats.
@@ -190,7 +314,8 @@ export async function implementWebsiteWithAi(input: {
         const start = raw.indexOf("{");
         const end = raw.lastIndexOf("}");
         const slice = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
-        return SiteDocumentSchema.parse(JSON.parse(slice));
+        const parsed = JSON.parse(slice);
+        return SiteDocumentSchema.parse(normalizeSiteDocument(parsed));
       },
     });
     const site = result?.data ?? fallback;
