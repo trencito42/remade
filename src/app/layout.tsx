@@ -1,32 +1,25 @@
+import { Geist } from "next/font/google";
 import type { Metadata } from "next";
-import { Newsreader, Sora } from "next/font/google";
 import "./globals.css";
 
-const display = Newsreader({
+const geist = Geist({
   subsets: ["latin"],
-  variable: "--font-display",
-  style: ["normal", "italic"],
-});
-
-const sans = Sora({
-  subsets: ["latin"],
-  variable: "--font-sans",
+  variable: "--font-geist",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Remade — Your website deserves better",
-  description:
-    "Paste an existing website. Remade researches, interviews, designs, critiques, and repairs until the rebuild is good enough to ship.",
+  title: {
+    default: "Dispatch",
+    template: "%s · Dispatch",
+  },
+  description: "Gaming and technology news, clustered from sources.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className={`${display.variable} ${sans.variable}`}>{children}</body>
+    <html lang="en" className={geist.variable}>
+      <body className="min-h-screen bg-canvas font-sans text-ink antialiased">{children}</body>
     </html>
   );
 }

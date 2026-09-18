@@ -1,119 +1,83 @@
-import { lookup } from "node:dns/promises";
-import net from "node:net";
+import { createHash } from "node:crypto";
 
-export class UnsafeUrlError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "UnsafeUrlError";
+const PRIVATE_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1"]);
+
+export function canonicalizeUrl(raw: string) {
+  const url = new URL(raw);
+  url.hash = "";
+  url.hostname = url.hostname.toLowerCase();
+  if ((url.protocol === "http:" && url.port === "80") || (url.protocol === "https:" && url.port === "443")) {
+    url.port = "";
   }
+  const tracking = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "fbclid", "gclid"];
+  tracking.forEach((key) => url.searchParams.delete(key));
+  url.searchParams.sort();
+  let pathname = url.pathname.replace(/\/+$/, "");
+  if (!pathname) pathname = "/";
+  return `${url.protocol}//${url.host}${pathname}${url.search}`;
 }
 
-const BLOCKED_HOSTNAMES = new Set([
-  "localhost",
-  "metadata.google.internal",
-  "metadata.google",
-]);
-
-function isPrivateIp(ip: string): boolean {
-  if (net.isIPv4(ip)) {
-    const parts = ip.split(".").map(Number);
-    const [a, b] = parts;
-    if (a === 10) return true;
-    if (a === 127) return true;
-    if (a === 0) return true;
-    if (a === 169 && b === 254) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
-    return false;
-  }
-
-  if (net.isIPv6(ip)) {
-    const normalized = ip.toLowerCase();
-    if (normalized === "::1") return true;
-    if (normalized.startsWith("fc") || normalized.startsWith("fd")) return true; // ULA
-    if (normalized.startsWith("fe80")) return true; // link-local
-    if (normalized.startsWith("::ffff:")) {
-      const v4 = normalized.replace("::ffff:", "");
-      return isPrivateIp(v4);
-    }
-  }
-
-  return false;
-}
-
-export function normalizeInputUrl(raw: string): URL {
-  const trimmed = raw.trim();
-  if (!trimmed) throw new UnsafeUrlError("URL is required.");
-
-  const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed);
-  const candidate = hasScheme ? trimmed : `https://${trimmed}`;
-
+export function assertSafeHttpUrl(raw: string) {
   let url: URL;
   try {
-    url = new URL(candidate);
+    url = new URL(raw);
   } catch {
-    throw new UnsafeUrlError("That does not look like a valid URL.");
+    throw new Error("Invalid URL");
   }
-
   if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new UnsafeUrlError("Only http and https URLs are allowed.");
+    throw new Error("Only http(s) URLs are allowed");
   }
-
-  if (!url.hostname || url.hostname.includes(" ")) {
-    throw new UnsafeUrlError("Hostname is invalid.");
+  const host = url.hostname.toLowerCase();
+  if (PRIVATE_HOSTS.has(host) || host.endsWith(".local") || host.endsWith(".internal")) {
+    throw new Error("Private hosts are blocked");
   }
-
-  const host = url.hostname.toLowerCase().replace(/\.$/, "");
-  if (BLOCKED_HOSTNAMES.has(host) || host.endsWith(".localhost")) {
-    throw new UnsafeUrlError("That host cannot be crawled.");
+  if (isPrivateIp(host)) {
+    throw new Error("Private IP ranges are blocked");
   }
-
-  if (net.isIP(host) && isPrivateIp(host)) {
-    throw new UnsafeUrlError("Private network addresses cannot be crawled.");
-  }
-
-  // Strip credentials from URL
-  url.username = "";
-  url.password = "";
-
   return url;
 }
 
-export async function assertUrlSafeToFetch(url: URL): Promise<void> {
-  const host = url.hostname.toLowerCase();
+function isPrivateIp(host: string) {
+  const ipv4 = /^(\d{1,3}\.){3}\d{1,3}$/;
+  if (!ipv4.test(host)) return false;
+  const [a, b] = host.split(".").map(Number);
+  if (a === undefined || b === undefined) return false;
+  if (a === 10 || a === 127 || a === 0) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  return false;
+}
 
-  if (BLOCKED_HOSTNAMES.has(host) || host.endsWith(".localhost")) {
-    throw new UnsafeUrlError("That host cannot be crawled.");
-  }
-
-  if (net.isIP(host)) {
-    if (isPrivateIp(host)) {
-      throw new UnsafeUrlError("Private network addresses cannot be crawled.");
-    }
-    return;
-  }
-
-  let records: { address: string; family: number }[];
+export async function safeFetch(url: string, init?: RequestInit) {
+  const parsed = assertSafeHttpUrl(url);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12_000);
   try {
-    records = await lookup(host, { all: true, verbatim: true });
-  } catch {
-    throw new UnsafeUrlError("Could not resolve that hostname.");
-  }
-
-  if (!records.length) {
-    throw new UnsafeUrlError("Could not resolve that hostname.");
-  }
-
-  for (const record of records) {
-    if (isPrivateIp(record.address)) {
-      throw new UnsafeUrlError(
-        "That hostname resolves to a private network address.",
-      );
+    const response = await fetch(parsed.toString(), {
+      ...init,
+      redirect: "manual",
+      signal: controller.signal,
+      headers: {
+        "user-agent": "DispatchBot/0.1 (+https://dispatch.local)",
+        ...(init?.headers ?? {}),
+      },
+    });
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      const location = response.headers.get("location");
+      if (!location) throw new Error("Redirect without location");
+      const next = new URL(location, parsed);
+      assertSafeHttpUrl(next.toString());
+      return safeFetch(next.toString(), { ...init, redirect: "manual" });
     }
+    const length = Number(response.headers.get("content-length") ?? "0");
+    if (length > 2_000_000) throw new Error("Response too large");
+    return response;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
-export function sameSite(a: URL, b: URL): boolean {
-  return a.protocol === b.protocol && a.hostname === b.hostname;
+export function hashText(value: string) {
+  return createHash("sha256").update(value).digest("hex");
 }
