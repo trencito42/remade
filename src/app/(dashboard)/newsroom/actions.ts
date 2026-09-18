@@ -32,6 +32,7 @@ export async function loginAction(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const result = await loginAdmin(password);
   if (!result.success) {
+    console.error("[Auth] Login failed:", result.error);
     redirect("/newsroom/login?error=invalid");
   }
   redirect("/newsroom");
