@@ -198,6 +198,7 @@ export async function generateConceptsWithAi(input: {
             "They must differ in composition, typography, density, imagery treatment and section rhythm, not just colors.",
             "Avoid generic SaaS heroes, gradient blobs, card soup, repetitive icon grids, fake stats and invented claims.",
             "Mobile must feel intentionally designed, not a collapsed desktop.",
+            "For each concept, write previewCss that makes its preview composition meaningfully unique. Keep it self-contained CSS, no @import and no url().",
             "Return JSON only. Preserve every field and enum value required by the supplied examples.",
           ].join(" "),
         },
