@@ -11,11 +11,59 @@ import { ensureSeed } from "@/lib/db/seed";
 
 export type AppDb = ReturnType<typeof drizzlePg<typeof schema>> | ReturnType<typeof drizzlePglite<typeof schema>>;
 
-let dbPromise: Promise<AppDb> | undefined;
-let bootstrapped = false;
+const globalForDb = globalThis as typeof globalThis & {
+  __dispatchDb?: Promise<AppDb>;
+  __dispatchBootstrapped?: boolean;
+};
 
 function bootstrapSql() {
   return fs.readFileSync(path.join(process.cwd(), "src/lib/db/bootstrap.sql"), "utf8");
+}
+
+function clearPid(dir: string) {
+  const pidFile = path.join(dir, "postmaster.pid");
+  if (!fs.existsSync(pidFile)) return;
+  try {
+    fs.unlinkSync(pidFile);
+  } catch {
+    // ignore
+  }
+}
+
+function pidIsLive(dir: string) {
+  const pidFile = path.join(dir, "postmaster.pid");
+  if (!fs.existsSync(pidFile)) return false;
+  try {
+    const pid = Number.parseInt(fs.readFileSync(pidFile, "utf8").split(/\s+/)[0] ?? "", 10);
+    if (!Number.isFinite(pid) || pid <= 0) return false;
+    process.kill(pid, 0);
+    return pid !== process.pid;
+  } catch {
+    return false;
+  }
+}
+
+async function openPglite(dir: string) {
+  fs.mkdirSync(dir, { recursive: true });
+  if (pidIsLive(dir)) {
+    console.warn("PGlite data directory is already open; using in-memory Postgres.");
+    return PGlite.create({ relaxedDurability: true });
+  }
+  clearPid(dir);
+  try {
+    return await PGlite.create(dir, { relaxedDurability: true });
+  } catch (first) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+      fs.mkdirSync(dir, { recursive: true });
+      globalForDb.__dispatchBootstrapped = false;
+      return await PGlite.create(dir, { relaxedDurability: true });
+    } catch {
+      console.error("PGlite data directory failed; using in-memory Postgres.", first);
+      globalForDb.__dispatchBootstrapped = false;
+      return await PGlite.create({ relaxedDurability: true });
+    }
+  }
 }
 
 async function createDb(): Promise<AppDb> {
@@ -23,27 +71,16 @@ async function createDb(): Promise<AppDb> {
   let db: AppDb;
   if (env.databaseUrl) {
     const client = postgres(env.databaseUrl, { max: 5 });
-    if (!bootstrapped) {
+    if (!globalForDb.__dispatchBootstrapped) {
       await client.unsafe(bootstrapSql());
-      bootstrapped = true;
+      globalForDb.__dispatchBootstrapped = true;
     }
     db = drizzlePg(client, { schema });
   } else {
-    const dir = path.resolve(env.pgliteDir);
-    fs.mkdirSync(dir, { recursive: true });
-    const pidFile = path.join(dir, "postmaster.pid");
-    if (fs.existsSync(pidFile)) {
-      try {
-        fs.unlinkSync(pidFile);
-      } catch {
-        // ignore
-      }
-    }
-    const pglite = new PGlite(dir);
-    await pglite.waitReady;
-    if (!bootstrapped) {
+    const pglite = await openPglite(path.resolve(env.pgliteDir));
+    if (!globalForDb.__dispatchBootstrapped) {
       await pglite.exec(bootstrapSql());
-      bootstrapped = true;
+      globalForDb.__dispatchBootstrapped = true;
     }
     db = drizzlePglite(pglite, { schema });
   }
@@ -52,8 +89,13 @@ async function createDb(): Promise<AppDb> {
 }
 
 export function getDb() {
-  dbPromise ??= createDb();
-  return dbPromise;
+  if (!globalForDb.__dispatchDb) {
+    globalForDb.__dispatchDb = createDb().catch((error) => {
+      globalForDb.__dispatchDb = undefined;
+      throw error;
+    });
+  }
+  return globalForDb.__dispatchDb;
 }
 
 export { schema };

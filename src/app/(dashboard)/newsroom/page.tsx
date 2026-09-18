@@ -1,30 +1,20 @@
 import { requireAdminOrRedirect } from "@/features/auth/session";
-import { listStoryFeed } from "@/features/stories/repository";
-import { NewsFeed } from "@/components/newsroom/NewsFeed";
-import { FetchSourcesButton } from "@/components/newsroom/FetchSourcesButton";
-import { EmptyState } from "@/components/news/ArticleList";
+import { getStoryWorkspace, listStoryFeed } from "@/features/stories/repository";
+import { NewsroomMasterDetail } from "@/components/newsroom/NewsroomMasterDetail";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewsroomPage() {
+export default async function NewsroomPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ story?: string }>;
+}) {
   await requireAdminOrRedirect();
   const stories = await listStoryFeed();
+  const params = await searchParams;
 
-  return (
-    <div className="pt-2">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[12px] text-faint">
-          Live
-          <span className="mx-1.5">·</span>
-          {stories.length} {stories.length === 1 ? "cluster" : "clusters"}
-        </p>
-        <FetchSourcesButton />
-      </div>
-      {stories.length === 0 ? (
-        <EmptyState>No clusters yet. Add an RSS source in Sources and fetch.</EmptyState>
-      ) : (
-        <NewsFeed stories={stories} />
-      )}
-    </div>
-  );
+  const targetId = params?.story ?? (stories[0]?.id || null);
+  const initialActiveStory = targetId ? await getStoryWorkspace(targetId) : null;
+
+  return <NewsroomMasterDetail stories={stories} initialActiveStory={initialActiveStory} />;
 }

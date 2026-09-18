@@ -2,26 +2,34 @@
 
 import { useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
+import { CircleCheck, Clock3, TriangleAlert, RefreshCw, Rss, Layers } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import { categoryMeta } from "@/lib/config/env";
-import { StoryStatus } from "@/components/newsroom/StoryStatus";
+import { StatusIndicator } from "@/components/ui/StatusIndicator";
 import { DraftEditor } from "@/components/newsroom/DraftEditor";
 import { SourceDetail, type SourceViewItem } from "@/components/ui/SourceDetail";
 import type { HydratedWorkspace } from "@/features/stories/repository";
 import { extractClaimsAction, generateBriefAction } from "@/app/(dashboard)/newsroom/actions";
 
-export function StoryWorkspace({ story }: { story: HydratedWorkspace }) {
+export function StoryWorkspace({
+  story,
+  onStoryUpdated,
+}: {
+  story: HydratedWorkspace;
+  onStoryUpdated?: () => void;
+}) {
   const [activeClaimId, setActiveClaimId] = useState<string | null>(null);
   const [extractingClaims, setExtractingClaims] = useState(false);
   const [generatingBrief, setGeneratingBrief] = useState(false);
 
   const activeClaim = story.claims.find((claim) => claim.id === activeClaimId) ?? null;
-  const highlighted = new Set(activeClaim?.sourceIds ?? []);
+  const highlighted = useMemo(() => new Set(activeClaim?.sourceIds ?? []), [activeClaim]);
 
   async function handleExtractClaims() {
     setExtractingClaims(true);
     try {
       await extractClaimsAction(story.id);
+      onStoryUpdated?.();
     } catch (err) {
       alert("Failed to extract claims: " + (err instanceof Error ? err.message : String(err)));
     } finally {
@@ -33,6 +41,7 @@ export function StoryWorkspace({ story }: { story: HydratedWorkspace }) {
     setGeneratingBrief(true);
     try {
       await generateBriefAction(story.id);
+      onStoryUpdated?.();
     } catch (err) {
       alert("Failed to generate brief: " + (err instanceof Error ? err.message : String(err)));
     } finally {
@@ -41,54 +50,90 @@ export function StoryWorkspace({ story }: { story: HydratedWorkspace }) {
   }
 
   return (
-    <article>
+    <article className="pb-16">
       <StoryHeader story={story} />
 
-      <div className="mt-8 lg:grid lg:grid-cols-[minmax(0,1fr)_220px] lg:gap-12">
-        <div className="min-w-0">
+      <div className="mt-8 lg:grid lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-10 items-start">
+        <div className="min-w-0 space-y-8">
+          {/* Brief */}
           <Section
-            title="Brief"
+            title="Story Brief"
             action={
               <button
                 type="button"
                 disabled={generatingBrief}
                 onClick={handleGenerateBrief}
-                className="text-[11px] text-faint hover:text-ink"
+                className="inline-flex items-center gap-1 text-[11.5px] text-faint hover:text-ink transition-colors disabled:opacity-50"
               >
-                {generatingBrief ? "Updating brief..." : "Refresh Brief"}
+                <RefreshCw size={12} className={generatingBrief ? "animate-spin" : ""} />
+                <span>{generatingBrief ? "Updating brief..." : "Refresh Brief"}</span>
               </button>
             }
           >
-            <p className="max-w-[58ch] text-[15px] leading-[1.55]">{story.summary}</p>
+            <p className="max-w-[62ch] text-[15px] leading-[1.6] text-ink/90 font-normal">
+              {story.summary || "No brief generated yet. Click 'Refresh Brief' to synthesize evidence."}
+            </p>
           </Section>
 
-          <Section title="Confirmed">
-            <LineList items={story.brief.confirmed} empty="Nothing confirmed yet." />
-          </Section>
+          {/* Confirmed Facts */}
+          {story.brief.confirmed.length > 0 && (
+            <Section title="Confirmed Facts">
+              <ul className="max-w-[62ch] space-y-2">
+                {story.brief.confirmed.map((item, idx) => (
+                  <li key={idx} className="flex items-start gap-2.5 text-[14.5px] leading-[1.55] text-ink">
+                    <CircleCheck size={16} strokeWidth={1.75} className="text-[#276749] mt-0.5 shrink-0" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
 
-          <Section title="Developing">
-            <LineList items={story.brief.developing} empty="No unverified points." />
-          </Section>
+          {/* Developing Points */}
+          {story.brief.developing.length > 0 && (
+            <Section title="Developing Reports">
+              <ul className="max-w-[62ch] space-y-2">
+                {story.brief.developing.map((item, idx) => (
+                  <li key={idx} className="flex items-start gap-2.5 text-[14.5px] leading-[1.55] text-mute">
+                    <Clock3 size={16} strokeWidth={1.75} className="text-[#8d6b1d] mt-0.5 shrink-0" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
 
-          <Section title="Contradictions">
-            <LineList items={story.brief.contradictions} empty="No conflicting claims." />
-          </Section>
+          {/* Contradictions */}
+          {story.brief.contradictions.length > 0 && (
+            <Section title="Contradictions">
+              <ul className="max-w-[62ch] space-y-2">
+                {story.brief.contradictions.map((item, idx) => (
+                  <li key={idx} className="flex items-start gap-2.5 text-[14.5px] leading-[1.55] text-[#9b2c2c] bg-[#9b2c2c]/5 p-2 rounded-md">
+                    <TriangleAlert size={16} strokeWidth={1.75} className="text-[#9b2c2c] mt-0.5 shrink-0" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
 
+          {/* Claims */}
           <Section
-            title="Claims"
+            title="Extracted Claims"
             action={
               <button
                 type="button"
                 disabled={extractingClaims}
                 onClick={handleExtractClaims}
-                className="text-[11px] text-faint hover:text-ink"
+                className="inline-flex items-center gap-1 text-[11.5px] text-faint hover:text-ink transition-colors disabled:opacity-50"
               >
-                {extractingClaims ? "Extracting..." : "Extract Claims"}
+                <RefreshCw size={12} className={extractingClaims ? "animate-spin" : ""} />
+                <span>{extractingClaims ? "Analyzing sources..." : "Extract Claims"}</span>
               </button>
             }
           >
             {story.claims.length === 0 ? (
-              <p className="text-[14px] text-mute">
+              <p className="text-[13.5px] text-mute py-2">
                 No claims extracted yet. Click &quot;Extract Claims&quot; to analyze sources.
               </p>
             ) : (
@@ -99,31 +144,43 @@ export function StoryWorkspace({ story }: { story: HydratedWorkspace }) {
               />
             )}
             {activeClaim ? (
-              <p className="mt-2 px-2 text-[12px] text-mute">
-                {activeClaim.sourceIds.length} supporting source{activeClaim.sourceIds.length === 1 ? "" : "s"}
-                {activeClaim.excerpt ? ` · “${activeClaim.excerpt}”` : ""}
-              </p>
+              <div className="mt-3 p-3 bg-s1/60 rounded-md border border-line/60 text-[12px] text-ink animate-fadeIn">
+                <div className="flex items-center gap-2 font-medium text-mute">
+                  <Layers size={13} />
+                  <span>
+                    Supported by {activeClaim.sourceIds.length} source{activeClaim.sourceIds.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                {activeClaim.excerpt ? (
+                  <p className="mt-1 text-mute italic leading-relaxed">
+                    &ldquo;{activeClaim.excerpt}&rdquo;
+                  </p>
+                ) : null}
+              </div>
             ) : null}
           </Section>
 
+          {/* Timeline */}
           <Section title="Timeline">
             {story.timeline.length === 0 ? (
-              <p className="text-[14px] text-mute">First seen {formatDateTime(new Date(story.firstSeenAt))}</p>
+              <p className="text-[13.5px] text-mute">First seen {formatDateTime(new Date(story.firstSeenAt))}</p>
             ) : (
-              <ol>
-                {story.timeline.map((item) => (
-                  <li key={item.at} className="py-2 sm:flex sm:gap-5">
-                    <time className="tabular block pt-0.5 text-[12px] text-mute sm:w-[7.5rem] sm:shrink-0">
+              <ol className="space-y-3 relative border-l border-line/60 ml-2 pl-4">
+                {story.timeline.map((item, idx) => (
+                  <li key={idx} className="relative">
+                    <span className="absolute -left-[21px] top-1.5 w-2 h-2 rounded-full bg-mute/40 ring-4 ring-canvas" />
+                    <time className="tabular block text-[11.5px] text-faint">
                       {formatDateTime(new Date(item.at))}
                     </time>
-                    <p className="mt-1 text-[14px] leading-relaxed sm:mt-0">{item.text}</p>
+                    <p className="mt-0.5 text-[13.5px] leading-relaxed text-ink">{item.text}</p>
                   </li>
                 ))}
               </ol>
             )}
           </Section>
 
-          <Section title="Draft">
+          {/* Draft Section */}
+          <Section title="Editorial Draft">
             <DraftEditor
               storyId={story.id}
               draftId={story.draft.id}
@@ -132,16 +189,27 @@ export function StoryWorkspace({ story }: { story: HydratedWorkspace }) {
               initialBody={story.draft.body}
               isPublished={story.published}
               publishedSlug={story.publishedSlug}
+              onPublished={onStoryUpdated}
             />
           </Section>
         </div>
 
-        <aside className="mt-12 hidden lg:block">
-          <SourceRail sources={story.sources} highlighted={highlighted} />
+        {/* Sticky Source Rail on Desktop */}
+        <aside className="hidden lg:block sticky top-[72px] self-start max-h-[calc(100vh-96px)] overflow-y-auto pl-2">
+          <SourceRail
+            sources={story.sources}
+            highlighted={highlighted}
+            activeClaim={activeClaim}
+          />
         </aside>
       </div>
 
-      <MobileSources sources={story.sources} highlighted={highlighted} />
+      {/* Mobile Sources Drawer Trigger */}
+      <MobileSources
+        sources={story.sources}
+        highlighted={highlighted}
+        activeClaim={activeClaim}
+      />
     </article>
   );
 }
@@ -150,21 +218,23 @@ function StoryHeader({ story }: { story: HydratedWorkspace }) {
   const cat = categoryMeta[story.category] || { label: story.category, href: "/" };
 
   return (
-    <header>
-      <p className="lead-kicker">
-        {cat.label}
-        <span className="mx-1.5 text-faint">·</span>
-        <StoryStatus status={story.status} />
-        <span className="mx-1.5 text-faint">·</span>
-        {Math.round(story.confidence * 100)}%
-        <span className="mx-1.5 text-faint">·</span>
-        {story.sourceCount} sources
-      </p>
-      <h1 className="mt-2 max-w-[40rem] text-[26px] leading-[1.14] tracking-[-0.038em] md:text-[32px]">{story.title}</h1>
-      <p className="mt-3 text-[12px] text-mute">
-        <span className="block sm:inline">First {formatDateTime(new Date(story.firstSeenAt))}</span>
-        <span className="mx-1.5 hidden text-faint sm:inline">·</span>
-        <span className="block sm:inline">Updated {formatDateTime(new Date(story.lastUpdatedAt))}</span>
+    <header className="border-b border-line pb-6">
+      <div className="flex flex-wrap items-center gap-2 text-[12px] text-mute mb-2">
+        <span className="font-semibold text-ink uppercase tracking-wider text-[11px]">{cat.label}</span>
+        <span className="text-faint">·</span>
+        <StatusIndicator status={story.status} showIcon size="sm" />
+        <span className="text-faint">·</span>
+        <span className="tabular">{Math.round(story.confidence * 100)}% confidence</span>
+        <span className="text-faint">·</span>
+        <span>{story.sourceCount} source{story.sourceCount === 1 ? "" : "s"}</span>
+      </div>
+      <h1 className="max-w-[44rem] text-[24px] md:text-[30px] font-semibold leading-[1.18] tracking-[-0.03em] text-ink">
+        {story.title}
+      </h1>
+      <p className="mt-2.5 text-[12px] text-faint flex items-center gap-2">
+        <span>First seen {formatDateTime(new Date(story.firstSeenAt))}</span>
+        <span>·</span>
+        <span>Updated {formatDateTime(new Date(story.lastUpdatedAt))}</span>
       </p>
     </header>
   );
@@ -180,26 +250,13 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="mt-8">
-      <div className="mb-2 flex items-baseline justify-between">
-        <h2 className="text-[12px] text-faint">{title}</h2>
+    <section className="pt-2">
+      <div className="mb-2.5 flex items-baseline justify-between border-b border-line/50 pb-1.5">
+        <h2 className="text-[12px] font-semibold uppercase tracking-wider text-faint">{title}</h2>
         {action}
       </div>
       {children}
     </section>
-  );
-}
-
-function LineList({ items, empty }: { items: string[]; empty: string }) {
-  if (items.length === 0) return <p className="text-[14px] text-mute">{empty}</p>;
-  return (
-    <ul className="max-w-[58ch] space-y-2">
-      {items.map((item, idx) => (
-        <li key={idx} className="text-[15px] leading-[1.55]">
-          {item}
-        </li>
-      ))}
-    </ul>
   );
 }
 
@@ -217,6 +274,7 @@ function ClaimList({
       role="listbox"
       tabIndex={0}
       aria-label="Claims"
+      className="space-y-1"
       onKeyDown={(event) => {
         if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
         event.preventDefault();
@@ -228,6 +286,26 @@ function ClaimList({
     >
       {claims.map((claim) => {
         const active = claim.id === activeId;
+        const normStatus = (claim.status || "").toLowerCase();
+
+        let Icon = Clock3;
+        let iconColor = "text-[#8d6b1d]";
+        let statusLabel = "Developing";
+
+        if (normStatus === "confirmed") {
+          Icon = CircleCheck;
+          iconColor = "text-[#276749]";
+          statusLabel = "Confirmed";
+        } else if (normStatus === "disputed") {
+          Icon = TriangleAlert;
+          iconColor = "text-[#9b2c2c]";
+          statusLabel = "Disputed";
+        } else if (normStatus === "rumor") {
+          Icon = Clock3;
+          iconColor = "text-[#8d6b1d]";
+          statusLabel = "Rumor";
+        }
+
         return (
           <button
             key={claim.id}
@@ -235,13 +313,22 @@ function ClaimList({
             role="option"
             aria-selected={active}
             onClick={() => onSelect(claim.id)}
-            className={`claim-btn block w-full py-2.5 text-left ${active ? "is-active" : activeId ? "text-mute" : "text-ink"}`}
+            className={`w-full p-2.5 rounded-lg text-left transition-all ${
+              active
+                ? "bg-s1 shadow-[inset_0_0_0_1px_rgba(17,17,17,0.08)]"
+                : "hover:bg-s1/60"
+            }`}
           >
-            <p className="text-[12px] text-mute">
-              {claim.status}
-              {claim.contradicting ? " · conflict" : ""}
-            </p>
-            <p className="mt-1 max-w-[58ch] text-[14px] leading-[1.5]">{claim.text}</p>
+            <div className="flex items-center gap-1.5 text-[11.5px] text-mute mb-1">
+              <Icon size={13} strokeWidth={2} className={iconColor} />
+              <span className="font-medium text-ink capitalize">{statusLabel}</span>
+              {claim.contradicting ? (
+                <span className="text-[#9b2c2c] bg-[#9b2c2c]/10 px-1 py-0.2 rounded text-[10.5px]">
+                  Conflict
+                </span>
+              ) : null}
+            </div>
+            <p className="text-[13.5px] leading-relaxed text-ink font-normal">{claim.text}</p>
           </button>
         );
       })}
@@ -252,43 +339,72 @@ function ClaimList({
 export function SourceRail({
   sources,
   highlighted,
+  activeClaim,
 }: {
   sources: SourceViewItem[];
   highlighted: Set<string>;
+  activeClaim?: HydratedWorkspace["claims"][number] | null;
 }) {
   const ordered = useMemo(() => {
     return [...sources].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
   }, [sources]);
 
   return (
-    <div>
-      <h2 className="mb-1 text-[12px] text-faint">Sources</h2>
-      {ordered.map((source) => (
-        <SourceDetail
-          key={source.id}
-          source={source}
-          dimmed={highlighted.size > 0 && !highlighted.has(source.id)}
-        />
-      ))}
+    <div className="space-y-1">
+      <div className="flex items-center justify-between pb-2 border-b border-line/60 mb-2">
+        <h2 className="text-[11.5px] font-semibold uppercase tracking-wider text-faint">Sources</h2>
+        <span className="text-[11px] text-faint tabular">{sources.length} total</span>
+      </div>
+      {ordered.map((source) => {
+        const isSupporting = activeClaim?.sourceIds?.includes(source.id);
+        const claimRel = isSupporting ? ("supports" as const) : null;
+        return (
+          <SourceDetail
+            key={source.id}
+            source={source}
+            dimmed={highlighted.size > 0 && !highlighted.has(source.id)}
+            claimRelationship={claimRel}
+          />
+        );
+      })}
     </div>
   );
 }
 
-function MobileSources({ sources, highlighted }: { sources: SourceViewItem[]; highlighted: Set<string> }) {
+function MobileSources({
+  sources,
+  highlighted,
+  activeClaim,
+}: {
+  sources: SourceViewItem[];
+  highlighted: Set<string>;
+  activeClaim?: HydratedWorkspace["claims"][number] | null;
+}) {
   return (
-    <div className="lg:hidden">
+    <div className="lg:hidden mt-8">
       <Dialog.Root>
         <Dialog.Trigger asChild>
-          <button type="button" className="nav-item mt-8 h-11">
-            Sources · {sources.length}
+          <button
+            type="button"
+            className="touch-target-44 w-full flex items-center justify-between px-4 py-2.5 bg-s1 text-ink text-[13.5px] font-medium rounded-lg border border-line"
+          >
+            <span className="flex items-center gap-2">
+              <Rss size={16} className="text-mute" />
+              <span>Coverage Sources</span>
+            </span>
+            <span className="text-[12px] text-mute">{sources.length} sources</span>
           </button>
         </Dialog.Trigger>
         <Dialog.Portal>
-          <Dialog.Overlay className="overlay fixed inset-0 z-40" />
-          <Dialog.Content className="sheet panel fixed inset-x-3 bottom-3 z-50 max-h-[80vh] overflow-y-auto p-3 focus:outline-none">
-            <Dialog.Title className="sr-only">Sources</Dialog.Title>
-            <SourceRail sources={sources} highlighted={highlighted} />
-            <Dialog.Close className="nav-item mt-2 h-11">Close</Dialog.Close>
+          <Dialog.Overlay className="overlay fixed inset-0 z-40 bg-ink/15 backdrop-blur-[2px]" />
+          <Dialog.Content className="sheet panel fixed inset-x-3 bottom-3 z-50 max-h-[82vh] overflow-y-auto p-4 max-w-lg mx-auto focus:outline-none shadow-2xl">
+            <Dialog.Title className="text-[15px] font-semibold tracking-tight text-ink mb-3">
+              Coverage Sources ({sources.length})
+            </Dialog.Title>
+            <SourceRail sources={sources} highlighted={highlighted} activeClaim={activeClaim} />
+            <Dialog.Close className="touch-target-44 w-full mt-4 bg-s1 text-ink text-[13px] font-medium rounded-md hover:bg-line transition-colors">
+              Close Sources
+            </Dialog.Close>
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>

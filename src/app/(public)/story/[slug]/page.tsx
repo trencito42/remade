@@ -5,8 +5,8 @@ import { getPublishedArticleBySlug, listPublishedArticles } from "@/features/pub
 import { formatDate } from "@/lib/utils";
 import { ArticleList } from "@/components/news/ArticleList";
 import { SourceDetail } from "@/components/ui/SourceDetail";
-import { StoryStatus } from "@/components/newsroom/StoryStatus";
-import type { StoryStatus as StoryStatusType } from "@/types/domain";
+import { StatusIndicator } from "@/components/ui/StatusIndicator";
+import { ShieldCheck } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +58,9 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
   const cat = categoryMeta[story.category] ?? { label: story.category, href: `/${story.category}` };
   const env = getEnv();
 
+  const primaryCount = story.sources.filter((s) => s.isPrimary).length;
+  const independentCount = story.sources.filter((s) => s.tier <= 1 && !s.isPrimary).length;
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
@@ -77,60 +80,98 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
   };
 
   return (
-    <article className="measure pt-6">
+    <article className="pt-8 pb-16">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <p className="lead-kicker">
-        {cat.label}
-        <span className="mx-1.5 text-faint">·</span>
-        <StoryStatus status={story.status as StoryStatusType} />
-        <span className="mx-1.5 text-faint">·</span>
-        {formatDate(new Date(story.updatedAt || story.publishedAt))}
-        <span className="mx-1.5 text-faint">·</span>
-        {story.sourceCount} {story.sourceCount === 1 ? "source" : "sources"}
-      </p>
-      <h1 className="mt-3 text-[32px] leading-[1.16] tracking-[-0.038em] text-pretty md:text-[40px]">{story.title}</h1>
-      <p className="mt-5 text-[18px] leading-[1.5] text-mute">{story.dek}</p>
-      <div className="mt-9 space-y-6">
-        {story.body.map((block) =>
-          block.type === "h2" ? (
-            <h2 key={block.id} className="text-[22px] tracking-[-0.03em] text-pretty">
-              {block.text}
-            </h2>
-          ) : block.type === "quote" ? (
-            <blockquote
-              key={block.id}
-              className="border-l-2 border-faint pl-4 text-[17px] italic text-mute"
-            >
-              {block.text}
-            </blockquote>
-          ) : (
-            <p key={block.id} className="text-[17px] leading-[1.7]">
+
+      {/* Article Header */}
+      <header className="max-w-[780px] border-b border-line pb-8">
+        <div className="flex flex-wrap items-center gap-2 text-[12px] text-mute mb-3">
+          <span className="font-semibold text-ink uppercase tracking-wider text-[11px]">{cat.label}</span>
+          <span className="text-faint">·</span>
+          <StatusIndicator status={story.status} showIcon size="sm" />
+          <span className="text-faint">·</span>
+          <time className="tabular text-faint">{formatDate(new Date(story.updatedAt || story.publishedAt))}</time>
+          <span className="text-faint">·</span>
+          <span className="tabular">{story.sourceCount} {story.sourceCount === 1 ? "source" : "sources"}</span>
+        </div>
+
+        <h1 className="text-[32px] sm:text-[38px] md:text-[42px] font-semibold leading-[1.12] tracking-[-0.038em] text-ink text-pretty">
+          {story.title}
+        </h1>
+
+        <p className="mt-4 text-[17px] sm:text-[18.5px] leading-[1.5] text-mute font-normal text-pretty">
+          {story.dek}
+        </p>
+      </header>
+
+      {/* Article Body (constrained to readable width 680-700px) */}
+      <div className="max-w-[690px] mt-8 space-y-6 text-[17px] leading-[1.75] text-ink/90 font-normal">
+        {story.body.map((block) => {
+          if (block.type === "h2") {
+            return (
+              <h2
+                key={block.id}
+                className="pt-4 text-[22px] md:text-[24px] font-semibold tracking-[-0.025em] text-ink text-pretty"
+              >
+                {block.text}
+              </h2>
+            );
+          }
+          if (block.type === "quote") {
+            return (
+              <blockquote
+                key={block.id}
+                className="border-l-2 border-ink/40 pl-4 py-1 text-[18px] italic text-mute leading-relaxed my-4"
+              >
+                {block.text}
+              </blockquote>
+            );
+          }
+          return (
+            <p key={block.id} className="text-pretty">
               {block.text}
             </p>
-          ),
-        )}
+          );
+        })}
       </div>
 
-      <section className="mt-14 border-t border-line pt-6">
-        <h2 className="text-[12px] text-faint font-medium">How this was reported</h2>
-        <p className="mt-2 text-[13px] leading-relaxed text-mute">
-          Dispatch clusters overlapping coverage and attributes independent sources. Repeating the same announcement is not treated as independent verification.
+      {/* How this was reported */}
+      <section className="max-w-[690px] mt-16 pt-8 border-t border-line">
+        <div className="flex items-center gap-2 mb-1.5">
+          <ShieldCheck size={16} className="text-ok" />
+          <h2 className="text-[13px] font-semibold uppercase tracking-wider text-ink">
+            How this was reported
+          </h2>
+        </div>
+
+        <p className="text-[12px] text-faint tabular mb-3">
+          {story.sourceCount} source{story.sourceCount === 1 ? "" : "s"}
+          {independentCount > 0 ? ` · ${independentCount} independent confirmation${independentCount === 1 ? "" : "s"}` : ""}
+          {primaryCount > 0 ? ` · ${primaryCount} primary source` : ""}
         </p>
-        <ul className="mt-3 divide-y divide-line/40">
+
+        <p className="text-[13px] leading-relaxed text-mute mb-4">
+          Dispatch clusters overlapping reporting and attributes original evidence. Secondary repetition of the same press release or announcement is not treated as independent confirmation.
+        </p>
+
+        <ul className="divide-y divide-line/40 border-t border-line/60">
           {story.sources.map((source) => (
-            <li key={source.id}>
+            <li key={source.id} className="py-1">
               <SourceDetail source={source} />
             </li>
           ))}
         </ul>
       </section>
 
+      {/* Related Stories */}
       {related.length > 0 ? (
-        <section className="mt-12 border-t border-line pt-6">
-          <h2 className="mb-2 text-[12px] text-faint font-medium">More in {cat.label}</h2>
+        <section className="max-w-[690px] mt-14 pt-8 border-t border-line">
+          <h2 className="mb-3 text-[12px] font-semibold uppercase tracking-wider text-faint">
+            More in {cat.label}
+          </h2>
           <ArticleList stories={related} compact />
         </section>
       ) : null}

@@ -6,19 +6,24 @@
   --s2: #fcfcfa;
   --s3: #ffffff;
   --ink: #111111;
-  --mute: #6b6b68;
-  --faint: #9a9a96;
+  --mute: #666663;
+  --faint: #858580;
+  --faint-soft: #a8a8a4;
   --line: rgb(17 17 17 / 0.08);
   --line-strong: rgb(17 17 17 / 0.12);
-  --ok: #2c5c45;
-  --warn: #7a5c20;
-  --alert: #8a3a32;
+  --ok: #276749;
+  --ok-dot: #2f855a;
+  --warn: #8d6b1d;
+  --warn-dot: #b7791f;
+  --alert: #9b2c2c;
+  --alert-dot: #c53030;
   --shadow: 0 8px 28px rgb(17 17 17 / 0.08);
+  --shadow-subtle: 0 4px 16px rgb(17 17 17 / 0.05);
   --radius: 6px;
   --radius-panel: 8px;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --move: 160ms;
-  --move-fast: 140ms;
+  --move: 150ms;
+  --move-fast: 120ms;
   --canvas: var(--s0);
   --wash: var(--s1);
 }
@@ -73,8 +78,27 @@ summary,
 
 :focus { outline: none; }
 :focus-visible {
-  outline: 1px solid var(--ink);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+.status-dot-ok { background-color: var(--ok-dot); }
+.status-dot-warn { background-color: var(--warn-dot); }
+.status-dot-alert { background-color: var(--alert-dot); }
+
+.touch-target-44 {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .tabular { font-variant-numeric: tabular-nums; }

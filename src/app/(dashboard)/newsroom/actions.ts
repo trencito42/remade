@@ -19,7 +19,13 @@ import { extractClaimsForStory } from "@/features/claims/service";
 import { generateStoryBrief } from "@/features/stories/brief";
 import { publishDraft } from "@/features/publishing/repository";
 import { saveDraft } from "@/features/drafts/repository";
+import { getStoryWorkspace } from "@/features/stories/repository";
 import type { ArticleBlock } from "@/lib/db/schema";
+
+export async function getStoryWorkspaceAction(storyId: string) {
+  await assertAdmin();
+  return getStoryWorkspace(storyId);
+}
 
 // Auth Actions
 export async function loginAction(formData: FormData) {
