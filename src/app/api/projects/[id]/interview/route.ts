@@ -13,7 +13,7 @@ import {
   buildAssumptionsSummary,
   buildUnderstandingSummary,
   maybeEnrichSummaryWithLlm,
-  selectNextQuestions,
+  selectNextQuestionsWithAi,
 } from "@/lib/agents/interview";
 
 export const runtime = "nodejs";
@@ -117,12 +117,13 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ ok: true, summary });
     }
 
-    const next = selectNextQuestions({
+    const next = (await selectNextQuestionsWithAi({
+      projectId: id,
       profile,
       answeredIds: [],
       priorAnswers: [],
       limit: 1,
-    })[0];
+    }))[0];
 
     if (next) {
       addInterviewMessage({
@@ -173,12 +174,13 @@ export async function POST(request: Request, { params }: Params) {
       .filter((m) => m.role === "user")
       .map((m) => m.content);
 
-    const next = selectNextQuestions({
+    const next = (await selectNextQuestionsWithAi({
+      projectId: id,
       profile,
       answeredIds,
       priorAnswers,
       limit: 1,
-    })[0];
+    }))[0];
 
     // After ~5 answered/skipped substantive turns, offer summary
     const userTurns = priorAnswers.length;
