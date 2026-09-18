@@ -43,6 +43,7 @@ export const ConceptSchema = z.object({
   name: z.string(),
   pitch: z.string(),
   differentiation: z.string(),
+  previewCss: z.string().max(12000).default(""),
   styleDna: StyleDNASchema,
   preview: ConceptPreviewSchema,
 });
