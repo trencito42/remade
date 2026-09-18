@@ -1,5 +1,6 @@
 import type { Concept } from "@/lib/schemas/site";
 import type { SiteDocument } from "@/lib/schemas/site";
+import { sanitizeGeneratedCss } from "@/lib/security/sanitize";
 
 function esc(value: string): string {
   return value
@@ -7,13 +8,6 @@ function esc(value: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-function layoutClass(dnaName: string): string {
-  const n = dnaName.toLowerCase();
-  if (n.includes("editorial")) return "layout-editorial";
-  if (n.includes("bold") || n.includes("quiet")) return "layout-bold";
-  return "layout-minimal";
 }
 
 /** Full website HTML for sandboxed iframe preview (no script execution needed). */
@@ -135,7 +129,7 @@ body {
   line-height: 1.5;
 }
 a { color: inherit; text-decoration: none; }
-.nav, .hero, .services, .about, .contact, .footer {
+.nav, .hero, .services, .about, .contact, .content-section, .footer {
   width: min(100% - 2rem, var(--max));
   margin-inline: auto;
 }
@@ -155,10 +149,6 @@ a { color: inherit; text-decoration: none; }
   display: grid; gap: 1.5rem; padding: var(--section-y) 0;
   grid-template-columns: 1.2fr 0.8fr; align-items: end;
 }
-.layout-editorial .hero { grid-template-columns: 1fr; }
-.layout-editorial .hero-media { min-height: 42vh; order: -1; }
-.layout-bold .hero h1 { font-size: ${ds.typeScale.display}; text-transform: uppercase; }
-.layout-minimal .hero { border-bottom: ${ds.borders.width} solid var(--line); }
 .hero h1 {
   font-family: var(--display); font-size: ${ds.typeScale.display};
   line-height: 1.05; letter-spacing: -0.04em; margin: 0.2rem 0 0.8rem;
@@ -176,7 +166,7 @@ a { color: inherit; text-decoration: none; }
 h2 { font-family: var(--display); font-size: ${ds.typeScale.h2}; letter-spacing: -0.02em; margin: 0 0 0.75rem; }
 .intro { color: var(--muted); margin: 0 0 1.5rem; max-width: 40rem; }
 .service-list { display: grid; gap: 1.25rem; }
-.layout-minimal .service-list { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.service-list { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .service-item {
   padding: 0; border: none; background: transparent;
   border-top: ${ds.borders.width} solid var(--line); padding-top: 1rem;
@@ -207,9 +197,10 @@ h2 { font-family: var(--display); font-size: ${ds.typeScale.h2}; letter-spacing:
   .hero h1 { max-width: none; font-size: clamp(2.2rem, 10vw, 3.2rem); }
   .nav nav { display: none; }
 }
+${sanitizeGeneratedCss(site.customCss)}
 </style>
 </head>
-<body class="${layoutClass(site.styleDna.name)}">
+<body>
 ${sections}
 </body>
 </html>`;
@@ -220,11 +211,9 @@ export function renderConceptPreviewHtml(concept: Concept, viewport: "desktop" |
   const dna = concept.styleDna;
   const p = concept.preview;
   const width = viewport === "mobile" ? 390 : 1440;
-  const isEditorial = dna.name.toLowerCase().includes("editorial");
-  const isBold = dna.personality.toLowerCase().includes("bold") || dna.name.toLowerCase().includes("bold");
-  const bg = isEditorial ? "#f6f3ee" : isBold ? "#f2f2f0" : "#eef0ee";
-  const accent = isEditorial ? "#7a2e1e" : isBold ? "#0b6e4f" : "#184e77";
-  const display = isEditorial ? "Georgia, serif" : "system-ui, sans-serif";
+  const bg = "#f3f3f0";
+  const accent = "#111111";
+  const display = "system-ui, sans-serif";
 
   return `<!doctype html><html><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=${width}"/>
@@ -232,8 +221,8 @@ export function renderConceptPreviewHtml(concept: Concept, viewport: "desktop" |
 body{margin:0;background:${bg};color:#141210;font-family:system-ui,sans-serif}
 .frame{width:${Math.min(width, 720)}px;max-width:100%;margin:0 auto;padding:12px}
 .nav{display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid #ccc;font-size:12px}
-.hero{display:grid;gap:12px;padding:28px 0;${isEditorial ? "" : "grid-template-columns:1.2fr .8fr;"}align-items:end}
-h1{font-family:${display};font-size:${isBold ? "42px" : "34px"};line-height:1.05;margin:0;letter-spacing:-.03em;max-width:11ch}
+.hero{display:grid;gap:12px;padding:28px 0;grid-template-columns:1.2fr .8fr;align-items:end}
+h1{font-family:${display};font-size:34px;line-height:1.05;margin:0;letter-spacing:-.03em;max-width:11ch}
 .sub{color:#666;font-size:14px;max-width:34ch}
 .btn{display:inline-block;background:${accent};color:#fff;padding:10px 12px;font-size:13px;font-weight:600;text-decoration:none}
 .media{min-height:140px;background:#fff;border:1px solid #ccc;display:grid;place-items:center;color:#888;font-size:12px}
@@ -241,7 +230,7 @@ h1{font-family:${display};font-size:${isBold ? "42px" : "34px"};line-height:1.05
 .section h2{font-size:18px;margin:0 0 8px;font-family:${display}}
 ul{margin:0;padding-left:18px;color:#555;font-size:13px}
 @media(max-width:500px){.hero{grid-template-columns:1fr}h1{font-size:28px}}
-</style></head><body><div class="frame">
+${sanitizeGeneratedCss(concept.previewCss)}\n</style></head><body><div class="frame">
 <div class="nav"><strong>${esc(p.nav.brand)}</strong><span>${p.nav.links.slice(0, 3).map(esc).join(" · ")}</span>${p.nav.cta ? `<span>${esc(p.nav.cta)}</span>` : ""}</div>
 <div class="hero">
   <div>
@@ -250,9 +239,9 @@ ul{margin:0;padding-left:18px;color:#555;font-size:13px}
     <p class="sub">${esc(p.hero.subhead)}</p>
     <a class="btn" href="#">${esc(p.hero.primaryCta)}</a>
   </div>
-  ${isEditorial ? "" : `<div class="media">${esc(p.hero.mediaLabel ?? "Image")}</div>`}
+  <div class="media">${esc(p.hero.mediaLabel ?? "Image")}</div>
 </div>
-${isEditorial ? `<div class="media" style="min-height:180px;margin-bottom:8px">${esc(p.hero.mediaLabel ?? "Photograph")}</div>` : ""}
+
 <div class="section">
   <h2>${esc(p.section.title)}</h2>
   <p class="sub">${esc(p.section.body)}</p>
