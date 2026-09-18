@@ -27,9 +27,13 @@ export function TopNav({ variant }: { variant: "public" | "desk" }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  const isLogin = pathname === "/newsroom/login";
+
   const links =
     variant === "public"
       ? publicLinks
+      : isLogin
+      ? []
       : [
           { href: "/newsroom", label: "Live" },
           { href: "/newsroom/sources", label: "Sources" },
@@ -39,7 +43,7 @@ export function TopNav({ variant }: { variant: "public" | "desk" }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 border-b transition-[background-color,border-color,box-shadow] duration-[150ms] ease-[cubic-bezier(0.2,0.8,0.2,1)]",
+        "sticky top-0 z-30 border-b pt-safe transition-[background-color,border-color,box-shadow] duration-[150ms] ease-[cubic-bezier(0.2,0.8,0.2,1)]",
         scrolled
           ? "border-line bg-[#fafaf8]/92 backdrop-blur-[14px] shadow-[0_1px_3px_rgb(17_17_17/0.03)]"
           : "border-transparent bg-canvas",
@@ -58,27 +62,35 @@ export function TopNav({ variant }: { variant: "public" | "desk" }) {
           </Link>
 
           <div className="flex min-w-0 items-center justify-end gap-1">
-            <nav className="hidden items-center gap-0.5 md:flex" aria-label="Primary">
-              {links.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={cn("nav-item", isActive(pathname, link.href) && "is-active")}
-                  aria-current={isActive(pathname, link.href) ? "page" : undefined}
-                >
-                  {link.label}
-                </Link>
-              ))}
-              {variant === "desk" ? (
-                <Link href="/" className="nav-item">
-                  Site
-                </Link>
-              ) : null}
-            </nav>
-            <SearchCommand variant={variant} />
-            <div className="md:hidden">
-              <MobileMenu variant={variant} links={links} pathname={pathname} />
-            </div>
+            {isLogin ? (
+              <Link href="/" className="nav-item">
+                Public Site
+              </Link>
+            ) : (
+              <>
+                <nav className="hidden items-center gap-0.5 md:flex" aria-label="Primary">
+                  {links.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className={cn("nav-item", isActive(pathname, link.href) && "is-active font-medium text-ink")}
+                      aria-current={isActive(pathname, link.href) ? "page" : undefined}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                  {variant === "desk" ? (
+                    <Link href="/" className="nav-item">
+                      Site
+                    </Link>
+                  ) : null}
+                </nav>
+                <SearchCommand variant={variant} />
+                <div className="md:hidden">
+                  <MobileMenu variant={variant} links={links} pathname={pathname} />
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -113,7 +125,7 @@ function MobileMenu({
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="overlay fixed inset-0 z-40 bg-ink/10 backdrop-blur-[2px]" />
-        <Dialog.Content className="sheet panel fixed inset-x-3 bottom-3 z-50 p-2 max-w-lg mx-auto focus:outline-none shadow-lg">
+        <Dialog.Content className="sheet panel fixed inset-x-3 bottom-3 pb-safe z-50 p-2.5 max-w-lg mx-auto focus:outline-none shadow-xl">
           <Dialog.Title className="sr-only">Navigation Menu</Dialog.Title>
           <div className="flex flex-col gap-0.5">
             {links.map((link) => (

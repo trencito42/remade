@@ -52,7 +52,7 @@ export function ArticleRow({
   return (
     <Link
       href={`/story/${story.slug}`}
-      className="row group flex items-start justify-between gap-4 py-2.5 px-2 rounded-lg transition-colors hover:bg-s1 active:bg-s1/90"
+      className="row group flex items-start justify-between gap-4 py-3 px-2.5 rounded-lg transition-transform duration-100 min-h-[44px] hover:bg-s1 active:scale-[0.99] active:bg-s1/90"
     >
       <div className="min-w-0 flex-1">
         <div className="row-meta flex items-center gap-1.5 text-[11.5px] text-mute mb-1">
@@ -60,9 +60,11 @@ export function ArticleRow({
           <span className="text-faint">·</span>
           <time className="tabular text-faint">{dateStr}</time>
         </div>
-        <h2 className={`font-medium leading-snug tracking-[-0.02em] text-ink transition-transform duration-150 group-hover:translate-x-[2px] ${
-          compact ? "text-[14.5px]" : "text-[16px]"
-        }`}>
+        <h2
+          className={`font-medium leading-snug tracking-[-0.02em] text-ink transition-transform duration-150 group-hover:translate-x-[2px] ${
+            compact ? "text-[14.5px]" : "text-[16px]"
+          }`}
+        >
           {story.title}
         </h2>
         {!compact && story.dek && (
@@ -70,8 +72,21 @@ export function ArticleRow({
             {story.dek}
           </p>
         )}
+
+        {/* Mobile-only provenance signals */}
+        <div className="sm:hidden mt-1.5 flex items-center gap-1.5 text-[11px] text-faint">
+          <span>{story.sourceCount ?? 1} {story.sourceCount === 1 ? "source" : "sources"}</span>
+          {story.status && (
+            <>
+              <span>·</span>
+              <StatusIndicator status={story.status} showIcon size="sm" showLabel={false} />
+              <span className="capitalize">{story.status}</span>
+            </>
+          )}
+        </div>
       </div>
 
+      {/* Desktop trailing provenance */}
       <div className="row-trail hidden sm:flex shrink-0 items-center gap-2 pt-1 text-[11.5px] text-faint">
         <span>{story.sourceCount ?? 1} src</span>
         {story.status && (

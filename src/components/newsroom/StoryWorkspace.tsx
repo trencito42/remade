@@ -10,6 +10,7 @@ import { DraftEditor } from "@/components/newsroom/DraftEditor";
 import { SourceDetail, type SourceViewItem } from "@/components/ui/SourceDetail";
 import type { HydratedWorkspace } from "@/features/stories/repository";
 import { extractClaimsAction, generateBriefAction } from "@/app/(dashboard)/newsroom/actions";
+import { useToast } from "@/components/ui/Toast";
 
 export function StoryWorkspace({
   story,
@@ -21,6 +22,7 @@ export function StoryWorkspace({
   const [activeClaimId, setActiveClaimId] = useState<string | null>(null);
   const [extractingClaims, setExtractingClaims] = useState(false);
   const [generatingBrief, setGeneratingBrief] = useState(false);
+  const { toast } = useToast();
 
   const activeClaim = story.claims.find((claim) => claim.id === activeClaimId) ?? null;
   const highlighted = useMemo(() => new Set(activeClaim?.sourceIds ?? []), [activeClaim]);
@@ -29,9 +31,10 @@ export function StoryWorkspace({
     setExtractingClaims(true);
     try {
       await extractClaimsAction(story.id);
+      toast("Claims extracted from sources", "success");
       onStoryUpdated?.();
     } catch (err) {
-      alert("Failed to extract claims: " + (err instanceof Error ? err.message : String(err)));
+      toast("Failed to extract claims: " + (err instanceof Error ? err.message : String(err)), "error");
     } finally {
       setExtractingClaims(false);
     }
@@ -41,9 +44,10 @@ export function StoryWorkspace({
     setGeneratingBrief(true);
     try {
       await generateBriefAction(story.id);
+      toast("Editorial brief updated", "success");
       onStoryUpdated?.();
     } catch (err) {
-      alert("Failed to generate brief: " + (err instanceof Error ? err.message : String(err)));
+      toast("Failed to generate brief: " + (err instanceof Error ? err.message : String(err)), "error");
     } finally {
       setGeneratingBrief(false);
     }
@@ -108,8 +112,8 @@ export function StoryWorkspace({
             <Section title="Contradictions">
               <ul className="max-w-[62ch] space-y-2">
                 {story.brief.contradictions.map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-2.5 text-[14.5px] leading-[1.55] text-[#9b2c2c] bg-[#9b2c2c]/5 p-2 rounded-md">
-                    <TriangleAlert size={16} strokeWidth={1.75} className="text-[#9b2c2c] mt-0.5 shrink-0" />
+                  <li key={idx} className="flex items-start gap-2.5 text-[14px] leading-[1.55] text-ink/90 bg-s1/40 border-l-2 border-alert p-2 rounded-r-md">
+                    <TriangleAlert size={15} strokeWidth={1.75} className="text-alert mt-0.5 shrink-0" />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -134,7 +138,7 @@ export function StoryWorkspace({
           >
             {story.claims.length === 0 ? (
               <p className="text-[13.5px] text-mute py-2">
-                No claims extracted yet. Click &quot;Extract Claims&quot; to analyze sources.
+                No claims extracted yet. Click Analyze Sources to extract factual claims.
               </p>
             ) : (
               <ClaimList
@@ -144,7 +148,7 @@ export function StoryWorkspace({
               />
             )}
             {activeClaim ? (
-              <div className="mt-3 p-3 bg-s1/60 rounded-md border border-line/60 text-[12px] text-ink animate-fadeIn">
+              <div className="mt-3 p-3 bg-s1/60 rounded-md border border-line/60 text-[12px] text-ink">
                 <div className="flex items-center gap-2 font-medium text-mute">
                   <Layers size={13} />
                   <span>

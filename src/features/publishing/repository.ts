@@ -30,6 +30,7 @@ export type PublicStoryView = {
   status: string;
   sourceCount: number;
   leadSource: string;
+  heroImage?: string | null;
   sources: Array<{
     id: string;
     name: string;
@@ -255,6 +256,7 @@ export async function listPublishedArticles(
       status: cluster?.status ?? "published",
       sourceCount: cluster?.sourceCount || sourcesList.length,
       leadSource: lead?.name ?? "Wire",
+      heroImage: row.heroImage?.url ?? null,
       sources: sourcesList,
     };
   });
@@ -326,6 +328,7 @@ export async function getPublishedArticleBySlug(slug: string): Promise<PublicSto
     status: cluster?.status ?? "published",
     sourceCount: cluster?.sourceCount || sourcesList.length,
     leadSource: lead?.name ?? "Wire",
+    heroImage: row.heroImage?.url ?? null,
     sources: sourcesList,
   };
 }

@@ -1,17 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { formatTime } from "@/lib/utils";
 import { categoryMeta } from "@/lib/config/env";
 import { StatusIndicator } from "@/components/ui/StatusIndicator";
 import { StoryWorkspace } from "@/components/newsroom/StoryWorkspace";
 import { FetchSourcesButton } from "@/components/newsroom/FetchSourcesButton";
+import { useToast } from "@/components/ui/Toast";
 import type { StoryFeedItem } from "@/types/domain";
 import type { HydratedWorkspace } from "@/features/stories/repository";
 import { getStoryWorkspaceAction } from "@/app/(dashboard)/newsroom/actions";
-import { Rss, Sparkles } from "lucide-react";
+import { Rss, RefreshCw, AlertCircle } from "lucide-react";
 
 export function NewsroomMasterDetail({
   stories,
@@ -27,7 +27,11 @@ export function NewsroomMasterDetail({
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [loadingStory, setLoadingStory] = useState(false);
-  const router = useRouter();
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const detailScrollRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   const filtered = stories.filter((story) => {
     if (selectedCategory !== "all" && story.category !== selectedCategory) return false;
@@ -35,20 +39,47 @@ export function NewsroomMasterDetail({
     return true;
   });
 
-  async function handleSelectStoryDesktop(storyId: string) {
-    if (selectedStoryId === storyId && activeStory) return;
-    setSelectedStoryId(storyId);
-    setLoadingStory(true);
-    try {
-      const workspace = await getStoryWorkspaceAction(storyId);
-      setActiveStory(workspace);
-      window.history.pushState(null, "", `/newsroom?story=${storyId}`);
-    } catch (err) {
-      console.error("Failed to load story workspace:", err);
-    } finally {
-      setLoadingStory(false);
-    }
-  }
+  const loadStory = useCallback(
+    async (storyId: string, pushHistory = true) => {
+      if (selectedStoryId === storyId && activeStory) return;
+
+      setSelectedStoryId(storyId);
+      setLoadingStory(true);
+      setLoadError(null);
+
+      try {
+        const workspace = await getStoryWorkspaceAction(storyId);
+        setActiveStory(workspace);
+        // Reset right detail pane scroll to top immediately upon story switch
+        detailScrollRef.current?.scrollTo({ top: 0, behavior: "instant" });
+
+        if (pushHistory) {
+          window.history.pushState({ storyId }, "", `/newsroom?story=${storyId}`);
+        }
+      } catch (err) {
+        console.error("Failed to load story workspace:", err);
+        const msg = err instanceof Error ? err.message : "Failed to load story workspace";
+        setLoadError(msg);
+        toast("Could not load story workspace. Retrying...", "error");
+      } finally {
+        setLoadingStory(false);
+      }
+    },
+    [selectedStoryId, activeStory, toast],
+  );
+
+  // Sync with browser Back / Forward (popstate)
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URL(window.location.href).searchParams;
+      const targetStoryId = urlParams.get("story");
+      if (targetStoryId && targetStoryId !== selectedStoryId) {
+        void loadStory(targetStoryId, false);
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [selectedStoryId, loadStory]);
 
   async function reloadActiveStory() {
     if (!selectedStoryId) return;
@@ -60,10 +91,31 @@ export function NewsroomMasterDetail({
     }
   }
 
+  // Keyboard navigation across story list
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const currentIndex = filtered.findIndex((s) => s.id === selectedStoryId);
+      if (currentIndex === -1) return;
+
+      const nextIndex =
+        e.key === "ArrowDown"
+          ? Math.min(filtered.length - 1, currentIndex + 1)
+          : Math.max(0, currentIndex - 1);
+
+      const nextStory = filtered[nextIndex];
+      if (nextStory && nextStory.id !== selectedStoryId) {
+        void loadStory(nextStory.id, true);
+      }
+    }
+  }
+
   return (
-    <div className="pt-2">
+    <div className="pt-2" onKeyDown={handleKeyDown}>
       {/* Top Meta Bar */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-2.5">
         <div className="flex items-center gap-2">
           <span className="font-semibold text-[13px] text-ink">Newsroom Wire</span>
           <span className="text-faint">·</span>
@@ -95,7 +147,7 @@ export function NewsroomMasterDetail({
       ) : (
         <>
           {/* Mobile Drill-in Feed (lg:hidden) */}
-          <div className="lg:hidden space-y-4">
+          <div className="lg:hidden space-y-3">
             <Filters
               selectedCategory={selectedCategory}
               setSelectedCategory={setSelectedCategory}
@@ -110,16 +162,16 @@ export function NewsroomMasterDetail({
                   <Link
                     key={story.id}
                     href={`/newsroom/${story.id}`}
-                    className="block py-3 px-1 hover:bg-s1/60 active:bg-s1 rounded-lg transition-colors"
+                    className="block py-3 px-1 hover:bg-s1/60 active:scale-[0.99] active:bg-s1 rounded-lg transition-transform"
                   >
                     <div className="flex items-center justify-between text-[11.5px] text-faint mb-1">
                       <div className="flex items-center gap-1.5">
                         <StatusIndicator status={story.status} showIcon size="sm" showLabel={false} />
                         <span className="capitalize font-medium text-mute">{cat.label}</span>
                         <span>·</span>
-                        <span>{story.leadSourceName ?? "Wire"}</span>
+                        <span className="truncate max-w-[120px]">{story.leadSourceName ?? "Wire"}</span>
                       </div>
-                      <time className="tabular">{time}</time>
+                      <time className="tabular text-faint">{time}</time>
                     </div>
                     <h3 className="text-[14.5px] font-medium leading-snug text-ink">{story.workingTitle}</h3>
                     <div className="mt-1 flex items-center gap-1 text-[11.5px] text-faint">
@@ -133,10 +185,13 @@ export function NewsroomMasterDetail({
             </div>
           </div>
 
-          {/* Desktop Master-Detail (hidden lg:flex) */}
-          <div className="hidden lg:flex items-start gap-8 min-h-[calc(100vh-120px)]">
-            {/* Left Rail: Live Stories Stream */}
-            <div className="w-[340px] shrink-0 border-r border-line pr-5 space-y-3 sticky top-[68px] self-start max-h-[calc(100vh-96px)] flex flex-col">
+          {/* Desktop Master-Detail Application Shell (hidden lg:flex) */}
+          <div className="hidden lg:flex items-start gap-6 h-[calc(100dvh-54px)] overflow-hidden">
+            {/* Left Rail: Live Stories Stream with Independent Scroll */}
+            <div
+              ref={listRef}
+              className="w-[340px] shrink-0 h-full flex flex-col border-r border-line pr-4 overflow-hidden"
+            >
               <Filters
                 selectedCategory={selectedCategory}
                 setSelectedCategory={setSelectedCategory}
@@ -144,59 +199,90 @@ export function NewsroomMasterDetail({
                 setSelectedStatus={setSelectedStatus}
               />
 
-              <div className="overflow-y-auto flex-1 pr-1 space-y-1">
-                {filtered.map((story) => {
-                  const isSelected = selectedStoryId === story.id;
-                  const time = formatTime(new Date(story.lastUpdatedAt));
-                  const cat = categoryMeta[story.category] ?? { label: story.category };
+              <div className="overflow-y-auto flex-1 pr-1 space-y-1 mt-2.5 scroll-subtle">
+                {filtered.length === 0 ? (
+                  <div className="py-12 text-center text-faint text-[12px]">
+                    No stories match active filters.
+                  </div>
+                ) : (
+                  filtered.map((story) => {
+                    const isSelected = selectedStoryId === story.id;
+                    const time = formatTime(new Date(story.lastUpdatedAt));
+                    const cat = categoryMeta[story.category] ?? { label: story.category };
 
-                  return (
-                    <button
-                      key={story.id}
-                      type="button"
-                      onClick={() => handleSelectStoryDesktop(story.id)}
-                      className={`w-full text-left p-2.5 rounded-lg transition-all ${
-                        isSelected
-                          ? "bg-s1 shadow-[inset_0_0_0_1px_rgba(17,17,17,0.08)]"
-                          : "hover:bg-s1/50"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between text-[11px] text-faint mb-1">
-                        <div className="flex items-center gap-1.5">
-                          <StatusIndicator status={story.status} showIcon size="sm" showLabel={false} />
-                          <span className="capitalize text-mute font-medium">{cat.label}</span>
-                          <span>·</span>
-                          <span className="truncate max-w-[110px]">{story.leadSourceName ?? "Wire"}</span>
+                    return (
+                      <button
+                        key={story.id}
+                        type="button"
+                        onClick={() => void loadStory(story.id, true)}
+                        className={`w-full text-left p-2.5 rounded-lg transition-colors group ${
+                          isSelected
+                            ? "bg-s1 text-ink font-medium"
+                            : "hover:bg-s1/60 text-ink/90 active:bg-s1/80"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between text-[11px] text-faint mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <StatusIndicator status={story.status} showIcon size="sm" showLabel={false} />
+                            <span className="capitalize text-mute font-medium">{cat.label}</span>
+                            <span>·</span>
+                            <span className="truncate max-w-[110px]">{story.leadSourceName ?? "Wire"}</span>
+                          </div>
+                          <time className="tabular text-faint">{time}</time>
                         </div>
-                        <time className="tabular">{time}</time>
-                      </div>
 
-                      <h3 className="text-[13.5px] font-medium leading-snug text-ink line-clamp-2">
-                        {story.workingTitle}
-                      </h3>
+                        <h3 className="text-[13.5px] font-medium leading-snug line-clamp-2">
+                          {story.workingTitle}
+                        </h3>
 
-                      <div className="mt-1 flex items-center justify-between text-[11px] text-faint">
-                        <span>{story.sourceCount} sources</span>
-                        <span className="capitalize">{story.status}</span>
-                      </div>
-                    </button>
-                  );
-                })}
+                        <div className="mt-1 flex items-center justify-between text-[11px] text-faint">
+                          <span>{story.sourceCount} {story.sourceCount === 1 ? "source" : "sources"}</span>
+                          <span className="capitalize">{story.status}</span>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
 
-            {/* Right Pane: Story Workspace */}
-            <div className="flex-1 min-w-0 pl-2">
-              {loadingStory ? (
-                <div className="py-24 text-center text-mute text-[13px] flex items-center justify-center gap-2">
-                  <span className="status-dot status-dot-warn animate-ping" />
-                  <span>Loading story workspace…</span>
+            {/* Right Pane: Story Workspace with Independent Scroll */}
+            <div
+              ref={detailScrollRef}
+              className="flex-1 min-w-0 h-full overflow-y-auto pl-2 pr-1 pb-16 scroll-subtle relative"
+            >
+              {/* Subtle local progress indicator when switching stories */}
+              {loadingStory && (
+                <div className="sticky top-0 z-20 w-full mb-3 flex items-center justify-center">
+                  <div className="flex items-center gap-2 rounded-full bg-s2/95 border border-line px-3 py-1 shadow-sm text-[12px] text-mute backdrop-blur-sm">
+                    <RefreshCw size={12} className="animate-spin text-ink" />
+                    <span>Updating workspace…</span>
+                  </div>
+                </div>
+              )}
+
+              {loadError ? (
+                <div className="py-16 text-center max-w-sm mx-auto">
+                  <div className="w-9 h-9 rounded-full bg-alert/10 text-alert flex items-center justify-center mx-auto mb-2.5">
+                    <AlertCircle size={18} />
+                  </div>
+                  <h3 className="text-[14px] font-medium text-ink">Failed to load story</h3>
+                  <p className="mt-1 text-[12px] text-mute">{loadError}</p>
+                  <button
+                    type="button"
+                    onClick={() => selectedStoryId && void loadStory(selectedStoryId, false)}
+                    className="mt-3.5 nav-item h-7 px-3 text-[12px] text-ink border border-line"
+                  >
+                    Retry
+                  </button>
                 </div>
               ) : activeStory ? (
-                <StoryWorkspace story={activeStory} onStoryUpdated={reloadActiveStory} />
+                <div className="transition-opacity duration-150">
+                  <StoryWorkspace story={activeStory} onStoryUpdated={reloadActiveStory} />
+                </div>
               ) : (
                 <div className="py-24 text-center text-faint text-[13px]">
-                  Select a story from the live feed to inspect evidence, brief, and draft.
+                  Select a story from the live wire to inspect evidence, brief, and draft.
                 </div>
               )}
             </div>
@@ -219,20 +305,39 @@ function Filters({
   setSelectedStatus: (s: string) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5 text-[11px] pb-2 border-b border-line/60">
-      <div className="flex items-center gap-1 flex-wrap">
+    <div className="space-y-2 pb-2 border-b border-line/60">
+      {/* Category filters */}
+      <div className="flex items-center gap-1 overflow-x-auto scroll-subtle pb-0.5">
         {["all", "ai", "technology", "gaming", "hardware"].map((cat) => (
           <button
             key={cat}
             type="button"
             onClick={() => setSelectedCategory(cat)}
-            className={`px-2 py-0.5 rounded text-[11px] capitalize transition-colors ${
+            className={`px-2 py-0.5 rounded text-[11px] whitespace-nowrap capitalize transition-colors ${
               selectedCategory === cat
-                ? "bg-ink text-white font-medium"
-                : "text-mute hover:bg-s1 hover:text-ink"
+                ? "bg-s1 text-ink font-semibold"
+                : "text-mute hover:bg-s1/60 hover:text-ink"
             }`}
           >
             {cat === "all" ? "All" : categoryMeta[cat]?.label ?? cat}
+          </button>
+        ))}
+      </div>
+
+      {/* Status filters */}
+      <div className="flex items-center gap-1 overflow-x-auto scroll-subtle pb-0.5">
+        {["all", "confirmed", "developing", "disputed", "published"].map((st) => (
+          <button
+            key={st}
+            type="button"
+            onClick={() => setSelectedStatus(st)}
+            className={`px-2 py-0.5 rounded text-[10.5px] whitespace-nowrap capitalize transition-colors ${
+              selectedStatus === st
+                ? "bg-s1 text-ink font-semibold"
+                : "text-faint hover:bg-s1/60 hover:text-ink"
+            }`}
+          >
+            {st}
           </button>
         ))}
       </div>

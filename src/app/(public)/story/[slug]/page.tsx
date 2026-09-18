@@ -7,6 +7,7 @@ import { ArticleList } from "@/components/news/ArticleList";
 import { SourceDetail } from "@/components/ui/SourceDetail";
 import { StatusIndicator } from "@/components/ui/StatusIndicator";
 import { ShieldCheck } from "lucide-react";
+import Image from "next/image";
 
 export const dynamic = "force-dynamic";
 
@@ -80,41 +81,58 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
   };
 
   return (
-    <article className="pt-8 pb-16">
+    <article className="pt-6 pb-16">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
       {/* Article Header */}
-      <header className="max-w-[780px] border-b border-line pb-8">
-        <div className="flex flex-wrap items-center gap-2 text-[12px] text-mute mb-3">
-          <span className="font-semibold text-ink uppercase tracking-wider text-[11px]">{cat.label}</span>
-          <span className="text-faint">·</span>
-          <StatusIndicator status={story.status} showIcon size="sm" />
-          <span className="text-faint">·</span>
-          <time className="tabular text-faint">{formatDate(new Date(story.updatedAt || story.publishedAt))}</time>
-          <span className="text-faint">·</span>
-          <span className="tabular">{story.sourceCount} {story.sourceCount === 1 ? "source" : "sources"}</span>
+      <header className="max-w-[780px] border-b border-line pb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 mb-3 text-[12px] text-mute">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-ink capitalize text-[12.5px]">{cat.label}</span>
+            <span className="text-faint">·</span>
+            <StatusIndicator status={story.status} showIcon size="sm" />
+          </div>
+          <div className="flex items-center gap-2 text-faint text-[12px]">
+            <span className="tabular">{story.sourceCount} {story.sourceCount === 1 ? "source" : "sources"}</span>
+            <span>·</span>
+            <time className="tabular">{formatDate(new Date(story.updatedAt || story.publishedAt))}</time>
+          </div>
         </div>
 
-        <h1 className="text-[32px] sm:text-[38px] md:text-[42px] font-semibold leading-[1.12] tracking-[-0.038em] text-ink text-pretty">
+        <h1 className="text-[30px] sm:text-[36px] md:text-[40px] font-semibold leading-[1.14] tracking-[-0.035em] text-ink text-pretty">
           {story.title}
         </h1>
 
-        <p className="mt-4 text-[17px] sm:text-[18.5px] leading-[1.5] text-mute font-normal text-pretty">
+        <p className="mt-3.5 text-[16.5px] sm:text-[18px] leading-[1.5] text-mute font-normal text-pretty">
           {story.dek}
         </p>
       </header>
 
+      {/* Hero Image if present */}
+      {story.heroImage && (
+        <div className="relative aspect-[16/9] w-full max-w-[780px] overflow-hidden rounded-xl mt-6 bg-s1">
+          <Image
+            src={story.heroImage}
+            alt={story.title}
+            fill
+            sizes="(max-width: 1024px) 100vw, 780px"
+            className="object-cover"
+            priority
+          />
+        </div>
+      )}
+
       {/* Article Body (constrained to readable width 680-700px) */}
-      <div className="max-w-[690px] mt-8 space-y-6 text-[17px] leading-[1.75] text-ink/90 font-normal">
+      <div className="max-w-[690px] mt-8 space-y-5 text-[16px] sm:text-[17px] leading-[1.7] text-ink/90 font-normal">
         {story.body.map((block) => {
           if (block.type === "h2") {
             return (
               <h2
                 key={block.id}
-                className="pt-4 text-[22px] md:text-[24px] font-semibold tracking-[-0.025em] text-ink text-pretty"
+                className="pt-4 text-[20px] sm:text-[22px] md:text-[24px] font-semibold tracking-[-0.025em] text-ink text-pretty"
               >
                 {block.text}
               </h2>
@@ -124,7 +142,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
             return (
               <blockquote
                 key={block.id}
-                className="border-l-2 border-ink/40 pl-4 py-1 text-[18px] italic text-mute leading-relaxed my-4"
+                className="border-l-2 border-ink/40 pl-4 py-1 text-[17px] italic text-mute leading-relaxed my-4"
               >
                 {block.text}
               </blockquote>
@@ -142,7 +160,7 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
       <section className="max-w-[690px] mt-16 pt-8 border-t border-line">
         <div className="flex items-center gap-2 mb-1.5">
           <ShieldCheck size={16} className="text-ok" />
-          <h2 className="text-[13px] font-semibold uppercase tracking-wider text-ink">
+          <h2 className="text-[14px] font-semibold text-ink">
             How this was reported
           </h2>
         </div>

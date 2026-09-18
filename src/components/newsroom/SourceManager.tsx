@@ -24,6 +24,8 @@ import {
   toggleSourceAction,
   updateSourceAction,
 } from "@/app/(dashboard)/newsroom/actions";
+import { ConfirmationDialog } from "@/components/ui/AlertDialog";
+import { useToast } from "@/components/ui/Toast";
 
 type SourceRow = {
   id: string;
@@ -87,14 +89,21 @@ export function SourceManager({ initialSources }: { initialSources: SourceRow[] 
     }
   }
 
-  async function handleDelete(sourceId: string, name: string) {
-    if (!confirm(`Are you sure you want to delete source "${name}" and all associated feeds?`)) return;
-    setLoadingId(sourceId);
+  const { toast } = useToast();
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setLoadingId(deleteTarget.id);
     try {
-      await deleteSourceAction(sourceId);
-      setSources((prev) => prev.filter((s) => s.id !== sourceId));
+      await deleteSourceAction(deleteTarget.id);
+      setSources((prev) => prev.filter((s) => s.id !== deleteTarget.id));
+      toast(`Deleted source "${deleteTarget.name}"`, "success");
+    } catch (err) {
+      toast("Failed to delete source", "error");
     } finally {
       setLoadingId(null);
+      setDeleteTarget(null);
     }
   }
 
@@ -265,7 +274,7 @@ export function SourceManager({ initialSources }: { initialSources: SourceRow[] 
                         </DropdownMenu.Item>
                         <DropdownMenu.Separator className="h-px bg-line my-1" />
                         <DropdownMenu.Item
-                          onSelect={() => handleDelete(source.id, source.name)}
+                          onSelect={() => setDeleteTarget({ id: source.id, name: source.name })}
                           className="p-1.5 rounded hover:bg-red-50 text-alert cursor-pointer outline-none flex items-center justify-between"
                         >
                           <span>Delete</span>
@@ -488,6 +497,18 @@ export function SourceManager({ initialSources }: { initialSources: SourceRow[] 
           </Dialog.Portal>
         </Dialog.Root>
       )}
+
+      {/* Destructive Deletion Confirmation */}
+      <ConfirmationDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete Source"
+        description={`Are you sure you want to delete "${deleteTarget?.name}" and all associated feeds? This action cannot be undone.`}
+        confirmLabel="Delete Source"
+        destructive
+        onConfirm={confirmDelete}
+        loading={Boolean(loadingId)}
+      />
     </div>
   );
 }
