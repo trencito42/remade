@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { WorkingState } from "@/components/workflow/WorkingState";
 
 type Stage = {
   name: string;
@@ -12,11 +13,19 @@ type Stage = {
 
 type ProjectPayload = {
   project: { id: string; status: string; sourceUrl: string; title: string | null };
-  job: {
-    status: string;
-    currentStage: string | null;
-    error: string | null;
-    stages: Stage[];
+  jobs: {
+    analysis: {
+      status: string;
+      currentStage: string | null;
+      error: string | null;
+      stages: Stage[];
+    } | null;
+  };
+  businessProfile?: {
+    businessName?: string | null;
+    businessType?: string | null;
+    pages?: unknown[];
+    contact?: { phones?: string[]; emails?: string[] };
   } | null;
 };
 
@@ -31,26 +40,22 @@ export function AnalysisProgress({ projectId }: { projectId: string }) {
 
     async function poll() {
       try {
-        const response = await fetch(`/api/projects/${projectId}`, {
-          cache: "no-store",
-        });
+        const response = await fetch(`/api/projects/${projectId}`, { cache: "no-store" });
         const json = await response.json();
         if (!response.ok) {
           if (!cancelled) setError(json.error ?? "Failed to load project.");
           return;
         }
         if (cancelled) return;
+
         setData(json);
+        const analysisJob = json.jobs?.analysis ?? null;
 
         if (json.project.status === "interview") {
           router.replace(`/projects/${projectId}/interview`);
           return;
         }
-        if (
-          ["interview_complete", "research", "concepts"].includes(
-            json.project.status,
-          )
-        ) {
+        if (["interview_complete", "research", "concepts"].includes(json.project.status)) {
           router.replace(`/projects/${projectId}/directions`);
           return;
         }
@@ -59,8 +64,8 @@ export function AnalysisProgress({ projectId }: { projectId: string }) {
           return;
         }
 
-        if (json.job?.status === "failed" || json.project.status === "failed") {
-          setError(json.job?.error ?? "Analysis failed.");
+        if (analysisJob?.status === "failed" || json.project.status === "failed") {
+          setError(analysisJob?.error ?? "Analysis failed.");
           return;
         }
 
@@ -70,41 +75,35 @@ export function AnalysisProgress({ projectId }: { projectId: string }) {
       }
     }
 
-    poll();
+    void poll();
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
   }, [projectId, router]);
 
-  const stages = data?.job?.stages ?? [];
+  const analysisJob = data?.jobs?.analysis ?? null;
+  const profile = data?.businessProfile;
+  const contactCount =
+    (profile?.contact?.phones?.length ?? 0) + (profile?.contact?.emails?.length ?? 0);
+
+  const meta = [
+    { label: "Website", value: data?.project.sourceUrl ?? "Loading…" },
+    ...(data?.project.title ? [{ label: "Detected title", value: data.project.title }] : []),
+    ...(profile?.businessType ? [{ label: "Category", value: profile.businessType }] : []),
+    ...(profile?.pages?.length ? [{ label: "Pages mapped", value: String(profile.pages.length) }] : []),
+    ...(contactCount ? [{ label: "Contact signals", value: String(contactCount) }] : []),
+  ];
 
   return (
-    <div className="analysis">
-      <p className="eyebrow">Analysis</p>
-      <h1>Understanding the existing site</h1>
-      <p className="lede">
-        {data?.project.sourceUrl ?? "Loading…"}
-      </p>
-
-      <ol className="stage-list">
-        {stages.map((stage) => (
-          <li key={stage.name} data-status={stage.status}>
-            <span className="stage-marker" aria-hidden />
-            <div>
-              <p className="stage-label">{stage.label}</p>
-              {stage.status === "failed" && stage.error ? (
-                <p className="stage-error">{stage.error}</p>
-              ) : null}
-            </div>
-          </li>
-        ))}
-      </ol>
-
-      {error ? <p className="intake-error">{error}</p> : null}
-      {!error && data?.job?.status === "running" ? (
-        <p className="quiet">Working — progress updates as each stage finishes.</p>
-      ) : null}
-    </div>
+    <WorkingState
+      eyebrow="Analysis"
+      title="Understanding your site"
+      description="Remade is reading the live website, separating business facts from presentation, and preparing only the questions that can change the redesign."
+      stages={analysisJob?.stages ?? []}
+      currentStage={analysisJob?.currentStage}
+      error={error}
+      meta={meta}
+    />
   );
 }
