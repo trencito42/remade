@@ -9,7 +9,7 @@ import {
   listWebsiteVersions,
   setCurrentVersion,
 } from "@/lib/db/artifacts";
-import { applyEditRequest } from "@/lib/agents/edit";
+import { applyEditRequestWithAi } from "@/lib/agents/edit";
 import { renderSiteHtml } from "@/lib/render/html";
 import { canUseFeature, entitlementMessage } from "@/lib/entitlements/types";
 
@@ -66,7 +66,7 @@ export async function POST(request: Request, { params }: Params) {
     }
 
     addEditMessage({ projectId: id, role: "user", content });
-    const result = applyEditRequest(current.site, content);
+    const result = await applyEditRequestWithAi({ projectId: id, site: current.site, request: content });
     const html = renderSiteHtml(result.site);
     const versionId = createWebsiteVersion({
       projectId: id,
