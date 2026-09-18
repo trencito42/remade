@@ -32,8 +32,8 @@ export function renderSiteHtml(site: SiteDocument): string {
     <h1>${esc(section.headline)}</h1>
     <p class="sub">${esc(section.subhead)}</p>
     <div class="cta-row">
-      <a class="btn" href="#contact">${esc(section.primaryCta)}</a>
-      ${section.secondaryCta ? `<a class="linkish" href="#contact">${esc(section.secondaryCta)}</a>` : ""}
+      <a class="btn" href="${esc(section.primaryHref)}">${esc(section.primaryCta)}</a>
+      ${section.secondaryCta ? `<a class="linkish" href="${esc(section.secondaryHref ?? section.primaryHref)}">${esc(section.secondaryCta)}</a>` : ""}
     </div>
   </div>
   <div class="hero-media" aria-hidden="true">${esc(section.mediaLabel ?? "Visual")}</div>
@@ -237,7 +237,7 @@ ${sanitizeGeneratedCss(concept.previewCss)}\n</style></head><body><div class="fr
     ${p.hero.eyebrow ? `<div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:${accent}">${esc(p.hero.eyebrow)}</div>` : ""}
     <h1>${esc(p.hero.headline)}</h1>
     <p class="sub">${esc(p.hero.subhead)}</p>
-    <a class="btn" href="#">${esc(p.hero.primaryCta)}</a>
+    <a class="btn" href="${esc(p.hero.primaryHref)}">${esc(p.hero.primaryCta)}</a>
   </div>
   <div class="media">${esc(p.hero.mediaLabel ?? "Image")}</div>
 </div>
