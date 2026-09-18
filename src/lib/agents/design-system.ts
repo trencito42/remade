@@ -1,5 +1,5 @@
 import type { StyleDNA } from "@/lib/schemas/style-dna";
-import { completeJson } from "@/lib/ai/provider";
+import { completeJson, getConfiguredProvider } from "@/lib/ai/provider";
 import { DesignSystemSchema, type DesignSystem } from "@/lib/schemas/site";
 
 function fontsFor(dna: StyleDNA): DesignSystem["fonts"] {
@@ -157,7 +157,8 @@ export async function buildDesignSystemWithAi(input: {
       },
     });
     return result?.data ?? fallback;
-  } catch {
+  } catch (error) {
+    if (getConfiguredProvider()) throw error;
     return fallback;
   }
 }
