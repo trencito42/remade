@@ -194,7 +194,8 @@ export async function critiqueRenderedSiteWithAi(input: {
         consistencyNotes: issues.filter((i) => ["consistency", "rhythm", "ai_slop", "repetition", "business_fit"].includes(i.category)).map((i) => i.observation),
       },
     };
-  } catch {
+  } catch (error) {
+    if (getConfiguredProvider()) throw error;
     return structural;
   }
 }
