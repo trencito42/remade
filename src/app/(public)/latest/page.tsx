@@ -1,6 +1,8 @@
 import { StoryIndex } from "@/components/news/StoryIndex";
-import { publishedStories } from "@/lib/mock/stories";
+import { listPublished } from "@/lib/db/queries";
 
-export default function LatestPage() {
-  return <StoryIndex title="Latest" stories={publishedStories()} />;
+export const dynamic = "force-dynamic";
+
+export default async function LatestPage() {
+  return <StoryIndex title="Latest" stories={await listPublished()} />;
 }

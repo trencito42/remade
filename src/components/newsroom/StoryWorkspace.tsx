@@ -5,8 +5,8 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { formatDateTime } from "@/lib/utils";
 import { categoryMeta, type MockClaim, type MockSource, type MockStory } from "@/lib/mock/stories";
 import { StoryStatus } from "@/components/newsroom/StoryStatus";
-import { SourceBadge } from "@/components/source/SourceBadge";
 import { DraftEditor } from "@/components/newsroom/DraftEditor";
+import { SourceDetail } from "@/components/ui/SourceDetail";
 
 export function StoryWorkspace({ story }: { story: MockStory }) {
   const [activeClaimId, setActiveClaimId] = useState<string | null>(null);
@@ -17,10 +17,10 @@ export function StoryWorkspace({ story }: { story: MockStory }) {
     <article>
       <StoryHeader story={story} />
 
-      <div className="mt-10 lg:grid lg:grid-cols-[minmax(0,1fr)_240px] lg:gap-16">
+      <div className="mt-8 lg:grid lg:grid-cols-[minmax(0,1fr)_220px] lg:gap-12">
         <div className="min-w-0">
           <Section title="Brief">
-            <p className="max-w-[62ch] text-[15px] leading-relaxed">{story.summary}</p>
+            <p className="max-w-[58ch] text-[15px] leading-[1.55]">{story.summary}</p>
           </Section>
 
           <Section title="Confirmed">
@@ -41,13 +41,19 @@ export function StoryWorkspace({ story }: { story: MockStory }) {
               activeId={activeClaimId}
               onSelect={(id) => setActiveClaimId((current) => (current === id ? null : id))}
             />
+            {activeClaim ? (
+              <p className="mt-2 px-2 text-[12px] text-mute">
+                {activeClaim.sourceIds.length} supporting source{activeClaim.sourceIds.length === 1 ? "" : "s"}
+                {activeClaim.excerpt ? ` · “${activeClaim.excerpt}”` : ""}
+              </p>
+            ) : null}
           </Section>
 
           <Section title="Timeline">
             <ol>
               {story.timeline.map((item) => (
-                <li key={item.at} className="py-2.5 sm:flex sm:gap-5">
-                  <time className="tabular block text-[12px] text-mute sm:w-[7.5rem] sm:shrink-0">
+                <li key={item.at} className="py-2 sm:flex sm:gap-5">
+                  <time className="tabular block pt-0.5 text-[12px] text-mute sm:w-[7.5rem] sm:shrink-0">
                     {formatDateTime(new Date(item.at))}
                   </time>
                   <p className="mt-1 text-[14px] leading-relaxed sm:mt-0">{item.text}</p>
@@ -74,17 +80,19 @@ export function StoryWorkspace({ story }: { story: MockStory }) {
 function StoryHeader({ story }: { story: MockStory }) {
   return (
     <header>
-      <p className="text-[12px] text-mute">
+      <p className="lead-kicker">
         {categoryMeta[story.category].label}
-        <span className="mx-2 text-faint">·</span>
+        <span className="mx-1.5 text-faint">·</span>
         <StoryStatus status={story.status} />
-        <span className="mx-2 text-faint">·</span>
+        <span className="mx-1.5 text-faint">·</span>
         {Math.round(story.confidence * 100)}%
+        <span className="mx-1.5 text-faint">·</span>
+        {story.sourceCount} sources
       </p>
-      <h1 className="mt-3 max-w-[720px] text-[28px] leading-[1.15] tracking-[-0.035em] md:text-[34px]">{story.title}</h1>
-      <p className="mt-4 text-[13px] text-mute">
-        <span className="block sm:inline">First seen {formatDateTime(new Date(story.firstSeenAt))}</span>
-        <span className="mx-2 hidden text-faint sm:inline">·</span>
+      <h1 className="mt-2 max-w-[40rem] text-[26px] leading-[1.14] tracking-[-0.038em] md:text-[32px]">{story.title}</h1>
+      <p className="mt-3 text-[12px] text-mute">
+        <span className="block sm:inline">First {formatDateTime(new Date(story.firstSeenAt))}</span>
+        <span className="mx-1.5 hidden text-faint sm:inline">·</span>
         <span className="block sm:inline">Updated {formatDateTime(new Date(story.lastUpdatedAt))}</span>
       </p>
     </header>
@@ -93,8 +101,8 @@ function StoryHeader({ story }: { story: MockStory }) {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="mt-10">
-      <h2 className="mb-3 text-[12px] text-faint">{title}</h2>
+    <section className="mt-8">
+      <h2 className="mb-2 text-[12px] text-faint">{title}</h2>
       {children}
     </section>
   );
@@ -103,9 +111,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function LineList({ items, empty }: { items: string[]; empty: string }) {
   if (items.length === 0) return <p className="text-[14px] text-mute">{empty}</p>;
   return (
-    <ul className="max-w-[62ch] space-y-2.5">
+    <ul className="max-w-[58ch] space-y-2">
       {items.map((item) => (
-        <li key={item} className="text-[15px] leading-relaxed">
+        <li key={item} className="text-[15px] leading-[1.55]">
           {item}
         </li>
       ))}
@@ -123,22 +131,35 @@ function ClaimList({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div>
+    <div
+      role="listbox"
+      tabIndex={0}
+      aria-label="Claims"
+      onKeyDown={(event) => {
+        if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
+        event.preventDefault();
+        const index = Math.max(0, claims.findIndex((claim) => claim.id === activeId));
+        const next = event.key === "ArrowDown" ? Math.min(claims.length - 1, index + 1) : Math.max(0, index - 1);
+        const nextClaim = claims[next];
+        if (nextClaim) onSelect(nextClaim.id);
+      }}
+    >
       {claims.map((claim) => {
         const active = claim.id === activeId;
         return (
           <button
             key={claim.id}
             type="button"
+            role="option"
+            aria-selected={active}
             onClick={() => onSelect(claim.id)}
-            className={`claim-btn block w-full py-3 text-left ${active || !activeId ? "text-ink" : "text-mute"}`}
-            aria-pressed={active}
+            className={`claim-btn block w-full py-2.5 text-left ${active ? "is-active" : activeId ? "text-mute" : "text-ink"}`}
           >
             <p className="text-[12px] text-mute">
               {claim.status}
               {claim.contradicting ? " · conflict" : ""}
             </p>
-            <p className="mt-1 max-w-[62ch] text-[15px] leading-relaxed">{claim.text}</p>
+            <p className="mt-1 max-w-[58ch] text-[14px] leading-[1.5]">{claim.text}</p>
           </button>
         );
       })}
@@ -159,22 +180,13 @@ export function SourceRail({
 
   return (
     <div>
-      <h2 className="mb-3 text-[12px] text-faint">Sources</h2>
+      <h2 className="mb-1 text-[12px] text-faint">Sources</h2>
       {ordered.map((source) => (
-        <a
+        <SourceDetail
           key={source.id}
-          href={source.url}
-          target="_blank"
-          rel="noreferrer"
-          className={`source-link row block py-3 ${highlighted.size === 0 || highlighted.has(source.id) ? "text-ink" : "text-mute"}`}
-        >
-          <p className="row-title text-[14px]">{source.name}</p>
-          <p className="mt-1 text-[12px] text-mute">
-            {source.isPrimary ? "primary" : <SourceBadge tier={source.tier} />}
-            <span className="mx-2 text-faint">·</span>
-            {formatDateTime(new Date(source.publishedAt))}
-          </p>
-        </a>
+          source={source}
+          dimmed={highlighted.size > 0 && !highlighted.has(source.id)}
+        />
       ))}
     </div>
   );
@@ -185,20 +197,19 @@ function MobileSources({ sources, highlighted }: { sources: MockSource[]; highli
     <div className="lg:hidden">
       <Dialog.Root>
         <Dialog.Trigger asChild>
-          <button type="button" className="quiet-btn mt-8 text-[13px]">
+          <button type="button" className="nav-item mt-8 h-11">
             Sources · {sources.length}
           </button>
         </Dialog.Trigger>
         <Dialog.Portal>
           <Dialog.Overlay className="overlay fixed inset-0 z-40" />
-          <Dialog.Content className="sheet fixed inset-x-0 bottom-0 z-50 max-h-[80vh] overflow-y-auto bg-canvas px-5 pt-6 pb-10 focus:outline-none">
+          <Dialog.Content className="sheet panel fixed inset-x-3 bottom-3 z-50 max-h-[80vh] overflow-y-auto p-3 focus:outline-none">
             <Dialog.Title className="sr-only">Sources</Dialog.Title>
             <SourceRail sources={sources} highlighted={highlighted} />
-            <Dialog.Close className="quiet-btn mt-4 text-[13px]">Close</Dialog.Close>
+            <Dialog.Close className="nav-item mt-2 h-11">Close</Dialog.Close>
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
     </div>
   );
 }
-

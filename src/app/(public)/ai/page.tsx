@@ -1,6 +1,8 @@
 import { StoryIndex } from "@/components/news/StoryIndex";
-import { storiesByCategory } from "@/lib/mock/stories";
+import { listPublished } from "@/lib/db/queries";
 
-export default function AiPage() {
-  return <StoryIndex title="AI" stories={storiesByCategory("ai")} />;
+export const dynamic = "force-dynamic";
+
+export default async function AiPage() {
+  return <StoryIndex title="AI" stories={await listPublished("ai")} />;
 }

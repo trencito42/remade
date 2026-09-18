@@ -22,7 +22,7 @@ export function DraftEditor({ story }: { story: MockStory }) {
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           rows={2}
-          className="editor-field w-full resize-none bg-transparent text-[22px] leading-snug tracking-[-0.03em] outline-none"
+          className="w-full resize-none rounded-[6px] bg-transparent px-2 py-1 text-[22px] leading-snug tracking-[-0.03em] outline-none transition-[background-color] duration-[160ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] focus:bg-s1"
         />
       </label>
       <label className="mt-3 block">
@@ -31,7 +31,7 @@ export function DraftEditor({ story }: { story: MockStory }) {
           value={dek}
           onChange={(event) => setDek(event.target.value)}
           rows={2}
-          className="editor-field w-full resize-none bg-transparent text-[15px] leading-relaxed text-mute outline-none"
+          className="w-full resize-none rounded-[6px] bg-transparent px-2 py-1 text-[15px] leading-relaxed text-mute outline-none transition-[background-color] duration-[160ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] focus:bg-s1"
         />
       </label>
 
@@ -43,7 +43,7 @@ export function DraftEditor({ story }: { story: MockStory }) {
             onFocus={() => setSelected(block.id)}
             onChange={(event) => updateBlock(block.id, event.target.value)}
             rows={4}
-            className={`editor-field w-full resize-none bg-transparent text-[16px] leading-[1.65] outline-none ${
+            className={`w-full resize-none rounded-[6px] bg-transparent px-2 py-1 text-[16px] leading-[1.65] outline-none transition-[background-color,color] duration-[160ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] focus:bg-s1 ${
               selected && selected !== block.id ? "text-mute" : ""
             }`}
           />
@@ -51,19 +51,19 @@ export function DraftEditor({ story }: { story: MockStory }) {
       </div>
 
       <div className="mt-3 flex flex-wrap gap-x-4">
-        <button type="button" className="quiet-btn text-[13px]">
+        <button type="button" className="nav-item">
           Shorten
         </button>
-        <button type="button" className="quiet-btn text-[13px]">
+        <button type="button" className="nav-item">
           Make clearer
         </button>
-        <button type="button" className="quiet-btn text-[13px]">
+        <button type="button" className="nav-item">
           Add context
         </button>
-        <button type="button" className="quiet-btn text-[13px]">
+        <button type="button" className="nav-item">
           Verify claim
         </button>
-        <button type="button" className="quiet-btn text-[13px] !text-ink">
+        <button type="button" className="nav-item text-ink">
           Publish
         </button>
       </div>

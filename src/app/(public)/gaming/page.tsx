@@ -1,6 +1,8 @@
 import { StoryIndex } from "@/components/news/StoryIndex";
-import { storiesByCategory } from "@/lib/mock/stories";
+import { listPublished } from "@/lib/db/queries";
 
-export default function GamingPage() {
-  return <StoryIndex title="Gaming" stories={storiesByCategory("gaming")} />;
+export const dynamic = "force-dynamic";
+
+export default async function GamingPage() {
+  return <StoryIndex title="Gaming" stories={await listPublished("gaming")} />;
 }

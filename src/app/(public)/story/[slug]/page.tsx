@@ -1,25 +1,33 @@
 import { notFound } from "next/navigation";
-import { categoryMeta, publishedStories, storyBySlug } from "@/lib/mock/stories";
+import { categoryMeta } from "@/lib/mock/stories";
+import { getStoryBySlug, listPublished } from "@/lib/db/queries";
 import { formatDate } from "@/lib/utils";
-import { SourceBadge } from "@/components/source/SourceBadge";
 import { ArticleList } from "@/components/news/ArticleList";
+import { SourceDetail } from "@/components/ui/SourceDetail";
+import { StoryStatus } from "@/components/newsroom/StoryStatus";
+
+export const dynamic = "force-dynamic";
 
 export default async function StoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const story = storyBySlug(slug);
+  const story = await getStoryBySlug(slug);
   if (!story || !story.published) notFound();
-  const related = publishedStories().filter((item) => item.id !== story.id).slice(0, 3);
+  const related = (await listPublished(story.category)).filter((item) => item.id !== story.id).slice(0, 3);
 
   return (
-    <article className="measure mx-auto pt-4">
-      <p className="text-[12px] text-mute">
+    <article className="measure pt-6">
+      <p className="lead-kicker">
         {categoryMeta[story.category].label}
-        <span className="mx-2 text-faint">·</span>
+        <span className="mx-1.5 text-faint">·</span>
+        <StoryStatus status={story.status} />
+        <span className="mx-1.5 text-faint">·</span>
         {formatDate(new Date(story.lastUpdatedAt))}
+        <span className="mx-1.5 text-faint">·</span>
+        {story.sourceCount} {story.sourceCount === 1 ? "source" : "sources"}
       </p>
-      <h1 className="mt-3 text-[32px] leading-[1.14] tracking-[-0.038em] text-pretty md:text-[40px]">{story.title}</h1>
-      <p className="mt-5 text-[18px] leading-[1.55] text-mute">{story.dek}</p>
-      <div className="mt-10 space-y-6">
+      <h1 className="mt-3 text-[32px] leading-[1.16] tracking-[-0.038em] text-pretty md:text-[40px]">{story.title}</h1>
+      <p className="mt-5 text-[18px] leading-[1.5] text-mute">{story.dek}</p>
+      <div className="mt-9 space-y-6">
         {story.body.map((block) =>
           block.type === "h2" ? (
             <h2 key={block.id} className="text-[22px] tracking-[-0.03em] text-pretty">
@@ -32,34 +40,23 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
           ),
         )}
       </div>
-      <section className="mt-16">
-        <h2 className="text-[12px] text-faint">Sources</h2>
+      <section className="mt-14">
+        <h2 className="text-[12px] text-faint">How this was reported</h2>
+        <p className="mt-2 text-[13px] leading-relaxed text-mute">
+          Dispatch clusters overlapping coverage. Repeating the same announcement is not independent confirmation.
+        </p>
         <ul className="mt-3">
           {story.sources.map((source) => (
             <li key={source.id}>
-              <details className="group py-3">
-                <summary className="row cursor-pointer list-none">
-                  <span className="row-title text-[14px]">{source.name}</span>
-                  <span className="row-meta mt-1 block text-[12px] text-mute">
-                    {source.isPrimary ? "primary" : <SourceBadge tier={source.tier} />}
-                  </span>
-                </summary>
-                <p className="mt-2 pl-2 text-[13px] leading-relaxed text-mute">
-                  {source.title}
-                  <span className="mx-2 text-faint">·</span>
-                  <a href={source.url} target="_blank" rel="noreferrer" className="nav-link">
-                    Open source
-                  </a>
-                </p>
-              </details>
+              <SourceDetail source={source} />
             </li>
           ))}
         </ul>
       </section>
       {related.length > 0 ? (
-        <section className="mt-16">
-          <h2 className="text-[12px] text-faint">More</h2>
-          <ArticleList stories={related} />
+        <section className="mt-10">
+          <h2 className="mb-1 text-[12px] text-faint">More</h2>
+          <ArticleList stories={related} compact />
         </section>
       ) : null}
     </article>

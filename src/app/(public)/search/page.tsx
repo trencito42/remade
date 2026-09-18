@@ -15,16 +15,16 @@ export default function SearchPage() {
   }, [query]);
 
   return (
-    <div className="pt-2">
+    <div className="pt-3">
       <input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="Search"
-        className="w-full bg-transparent py-2 text-[28px] tracking-[-0.035em] outline-none placeholder:text-faint"
+        placeholder="Search stories"
+        className="field py-3 text-[18px] tracking-[-0.03em] placeholder:text-faint"
         autoFocus
         aria-label="Search stories"
       />
-      {results.length === 0 ? <EmptyState>No matching stories.</EmptyState> : <ArticleList stories={results} />}
+      {results.length === 0 ? <EmptyState>No matching stories.</EmptyState> : <ArticleList stories={results} compact />}
     </div>
   );
 }

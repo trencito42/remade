@@ -10,8 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:seed": "tsx scripts/seed.ts",
-    "ingest": "tsx scripts/ingest.ts",
+    "ingest": "tsx --env-file=.env scripts/ingest.ts",
+    "db:seed": "tsx --env-file=.env scripts/seed.ts",
     "jobs": "tsx scripts/jobs.ts"
   },
   "dependencies": {

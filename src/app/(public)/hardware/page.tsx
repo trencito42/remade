@@ -1,6 +1,8 @@
 import { StoryIndex } from "@/components/news/StoryIndex";
-import { storiesByCategory } from "@/lib/mock/stories";
+import { listPublished } from "@/lib/db/queries";
 
-export default function HardwarePage() {
-  return <StoryIndex title="Hardware" stories={storiesByCategory("hardware")} />;
+export const dynamic = "force-dynamic";
+
+export default async function HardwarePage() {
+  return <StoryIndex title="Hardware" stories={await listPublished("hardware")} />;
 }
