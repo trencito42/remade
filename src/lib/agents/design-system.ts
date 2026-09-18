@@ -1,4 +1,5 @@
 import type { StyleDNA } from "@/lib/schemas/style-dna";
+import { completeJson } from "@/lib/ai/provider";
 import { DesignSystemSchema, type DesignSystem } from "@/lib/schemas/site";
 
 function fontsFor(dna: StyleDNA): DesignSystem["fonts"] {
@@ -118,4 +119,45 @@ export function buildDesignSystem(dna: StyleDNA): DesignSystem {
       ...dna.avoidPatterns.slice(0, 6),
     ],
   });
+}
+
+
+export async function buildDesignSystemWithAi(input: {
+  projectId: string;
+  dna: StyleDNA;
+}): Promise<DesignSystem> {
+  const fallback = buildDesignSystem(input.dna);
+  try {
+    const result = await completeJson<DesignSystem>({
+      projectId: input.projectId,
+      task: "design_system",
+      temperature: 0.6,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "Create a production-ready web design system from Style DNA.",
+            "Return JSON only using exactly the provided DesignSystem shape.",
+            "Choose accessible color contrast, purposeful typography, spacing and radii.",
+            "Avoid the stereotypical purple AI palette, generic gradients, card soup and excessive rounding.",
+            "The system must work beautifully on 390px mobile first and scale to desktop.",
+            "Google font family entries must be valid Google Fonts query family values.",
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: JSON.stringify({ styleDna: input.dna, validExample: fallback }),
+        },
+      ],
+      parseJson: (raw) => {
+        const start = raw.indexOf("{");
+        const end = raw.lastIndexOf("}");
+        const slice = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
+        return DesignSystemSchema.parse(JSON.parse(slice));
+      },
+    });
+    return result?.data ?? fallback;
+  } catch {
+    return fallback;
+  }
 }
