@@ -208,7 +208,6 @@ ${sections}
 
 /** Compact concept strip HTML for direction selection. */
 export function renderConceptPreviewHtml(concept: Concept, viewport: "desktop" | "mobile"): string {
-  const dna = concept.styleDna;
   const p = concept.preview;
   const width = viewport === "mobile" ? 390 : 1440;
   const bg = "#f3f3f0";
