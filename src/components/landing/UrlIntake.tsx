@@ -56,8 +56,7 @@ export function UrlIntake() {
       </div>
       {error ? <p className="intake-error">{error}</p> : null}
       <p className="intake-note">
-        We analyze first. No website is generated until we understand the business
-        and interview you.
+        Research first. Nothing gets designed blindly.
       </p>
     </form>
   );
