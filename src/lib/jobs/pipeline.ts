@@ -35,7 +35,7 @@ import {
 import { renderSiteHtml } from "@/lib/render/html";
 import { critiqueRenderedSiteWithAi } from "@/lib/agents/visual-critic";
 import { detectSlop } from "@/lib/agents/slop-detector";
-import { repairSiteDocument } from "@/lib/agents/repair";
+import { repairSiteDocumentWithAi } from "@/lib/agents/repair";
 import type { UnderstandingSummary } from "@/lib/schemas/interview";
 import type { DesignSystem } from "@/lib/schemas/site";
 import { canUseFeature } from "@/lib/entitlements/types";
@@ -235,7 +235,7 @@ export async function runQaJob(jobId: string, projectId: string) {
 
         if (pass >= config.max_passes) break;
 
-        const repaired = repairSiteDocument(current.site, result.issues);
+        const repaired = await repairSiteDocumentWithAi({ projectId, site: current.site, issues: result.issues });
         lastChangelog = repaired.changelog;
         const html = renderSiteHtml(repaired.site);
         createWebsiteVersion({
