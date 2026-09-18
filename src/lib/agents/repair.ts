@@ -1,6 +1,6 @@
 import type { SiteDocument, VisualIssue } from "@/lib/schemas/site";
 import { SiteDocumentSchema } from "@/lib/schemas/site";
-import { completeJson } from "@/lib/ai/provider";
+import { completeJson, getConfiguredProvider } from "@/lib/ai/provider";
 
 /**
  * Surgical repair — changes only what issues require.
@@ -126,7 +126,8 @@ export async function repairSiteDocumentWithAi(input: {
       },
     });
     return result?.data ?? fallback;
-  } catch {
+  } catch (error) {
+    if (getConfiguredProvider()) throw error;
     return fallback;
   }
 }
