@@ -26,11 +26,11 @@ import {
 } from "@/lib/db/artifacts";
 import { runResearchAgent } from "@/lib/agents/research";
 import { runDesignDirector } from "@/lib/agents/design-director";
-import { generateConcepts } from "@/lib/agents/concepts";
+import { generateConceptsWithAi } from "@/lib/agents/concepts";
 import { buildDesignSystem } from "@/lib/agents/design-system";
 import {
   assertContentIntegrity,
-  implementWebsite,
+  implementWebsiteWithAi,
 } from "@/lib/agents/implement";
 import { renderSiteHtml } from "@/lib/render/html";
 import { critiqueRenderedSite } from "@/lib/agents/visual-critic";
@@ -97,7 +97,7 @@ export async function runDirectionJob(jobId: string, projectId: string) {
 
     await runStage(jobId, "generate_concepts", async () => {
       const brief = getCreativeBrief(projectId)!;
-      const concepts = generateConcepts({ profile, brief, interview });
+      const concepts = await generateConceptsWithAi({ projectId, profile, brief, interview });
       replaceConcepts(projectId, concepts);
       updateProject(projectId, { status: "concepts" });
       return {
@@ -143,7 +143,8 @@ export async function runBuildJob(jobId: string, projectId: string) {
 
     await runStage(jobId, "implement", async () => {
       if (!designSystem) throw new Error("Design system missing");
-      const site = implementWebsite({
+      const site = await implementWebsiteWithAi({
+        projectId,
         profile,
         interview,
         styleDna: selected.styleDna,
