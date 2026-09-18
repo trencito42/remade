@@ -20,6 +20,52 @@ function textValue(value: unknown): string | null {
   return null;
 }
 
+function normalizeContentItems(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.map((itemValue) => {
+    if (typeof itemValue === "string") {
+      return { title: null, body: itemValue, meta: null };
+    }
+    if (!itemValue || typeof itemValue !== "object") {
+      return { title: null, body: "", meta: null };
+    }
+    const item = itemValue as Record<string, unknown>;
+    return {
+      title:
+        textValue(item.title) ??
+        textValue(item.label) ??
+        textValue(item.name),
+      body:
+        textValue(item.body) ??
+        textValue(item.description) ??
+        textValue(item.text) ??
+        "",
+      meta:
+        textValue(item.meta) ??
+        textValue(item.value) ??
+        textValue(item.subtitle),
+    };
+  });
+}
+
+function normalizeContentCta(value: unknown) {
+  if (!value) return null;
+  if (typeof value === "string") {
+    return { label: value, href: "#contact" };
+  }
+  if (typeof value !== "object") return null;
+  const cta = value as Record<string, unknown>;
+  const label =
+    textValue(cta.label) ??
+    textValue(cta.title) ??
+    textValue(cta.text);
+  if (!label) return null;
+  return {
+    label,
+    href: textValue(cta.href) ?? "#contact",
+  };
+}
+
 function normalizeSiteDocument(raw: unknown): unknown {
   if (!raw || typeof raw !== "object") return raw;
   const doc = structuredClone(raw) as Record<string, unknown>;
@@ -88,45 +134,42 @@ function normalizeSiteDocument(raw: unknown): unknown {
     }
 
     if (type === "content") {
-      const items = Array.isArray(section.items)
-        ? section.items.map((itemValue) => {
-            if (typeof itemValue === "string") {
-              return { title: null, body: itemValue, meta: null };
-            }
-            if (!itemValue || typeof itemValue !== "object") {
-              return { title: null, body: "", meta: null };
-            }
-            const item = itemValue as Record<string, unknown>;
-            return {
-              ...item,
-              title: textValue(item.title),
-              body: textValue(item.body) ?? "",
-              meta: textValue(item.meta),
-            };
-          })
-        : [];
-
-      const cta =
-        section.cta && typeof section.cta === "object"
-          ? {
-              label: textValue((section.cta as Record<string, unknown>).label) ?? "Learn more",
-              href:
-                textValue((section.cta as Record<string, unknown>).href) ??
-                "#contact",
-            }
-          : null;
-
+      const items = normalizeContentItems(section.items);
       return {
         ...section,
+        variant: textValue(section.variant) ?? "default",
         eyebrow: textValue(section.eyebrow),
+        title: textValue(section.title) ?? "",
         body: textValue(section.body),
         mediaUrl: textValue(section.mediaUrl),
         items,
-        cta,
+        cta: normalizeContentCta(section.cta),
       };
     }
 
-    return section;
+    // Preserve creative AI section semantics without letting unknown discriminators
+    // crash the entire build. Unknown types become flexible content sections and
+    // keep their original type name as the variant for rendering/art direction.
+    return {
+      type: "content",
+      variant: typeof type === "string" && type.trim() ? type : "custom",
+      eyebrow: textValue(section.eyebrow),
+      title:
+        textValue(section.title) ??
+        textValue(section.headline) ??
+        textValue(section.name) ??
+        "",
+      body:
+        textValue(section.body) ??
+        textValue(section.description) ??
+        textValue(section.subhead),
+      items: normalizeContentItems(section.items),
+      mediaUrl:
+        textValue(section.mediaUrl) ??
+        textValue(section.image) ??
+        textValue(section.media),
+      cta: normalizeContentCta(section.cta),
+    };
   });
 
   return doc;
