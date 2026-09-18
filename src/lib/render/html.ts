@@ -76,6 +76,23 @@ export function renderSiteHtml(site: SiteDocument): string {
 </section>`;
         case "footer":
           return `<footer class="footer" data-section="footer"><p>${esc(section.text)}</p></footer>`;
+        case "content":
+          return `<section class="content-section content-${esc(section.variant)}" data-section="content" data-variant="${esc(section.variant)}">
+  <div class="content-head">
+    ${section.eyebrow ? `<p class="eyebrow">${esc(section.eyebrow)}</p>` : ""}
+    <h2>${esc(section.title)}</h2>
+    ${section.body ? `<p class="intro">${esc(section.body)}</p>` : ""}
+  </div>
+  ${section.mediaUrl ? `<div class="content-media"><img src="${esc(section.mediaUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer"/></div>` : ""}
+  ${section.items.length ? `<div class="content-items">
+    ${section.items.map((item) => `<article class="content-item">
+      ${item.title ? `<h3>${esc(item.title)}</h3>` : ""}
+      <p>${esc(item.body)}</p>
+      ${item.meta ? `<span class="meta">${esc(item.meta)}</span>` : ""}
+    </article>`).join("")}
+  </div>` : ""}
+  ${section.cta ? `<a class="btn" href="${esc(section.cta.href)}">${esc(section.cta.label)}</a>` : ""}
+</section>`;
         default:
           return "";
       }
@@ -155,7 +172,7 @@ a { color: inherit; text-decoration: none; }
   border-radius: var(--media-radius); min-height: 280px;
   display: grid; place-items: center; color: var(--muted); font-size: ${ds.typeScale.small};
 }
-.services, .about, .contact { padding: var(--section-y) 0; }
+.services, .about, .contact, .content-section { padding: var(--section-y) 0; }
 h2 { font-family: var(--display); font-size: ${ds.typeScale.h2}; letter-spacing: -0.02em; margin: 0 0 0.75rem; }
 .intro { color: var(--muted); margin: 0 0 1.5rem; max-width: 40rem; }
 .service-list { display: grid; gap: 1.25rem; }
@@ -166,13 +183,27 @@ h2 { font-family: var(--display); font-size: ${ds.typeScale.h2}; letter-spacing:
 }
 .service-item h3 { margin: 0 0 0.4rem; font-size: 1.05rem; }
 .service-item p { margin: 0; color: var(--muted); }
+.content-section { border-top: ${ds.borders.width} solid var(--line); }
+.content-head { max-width: 46rem; margin-bottom: clamp(1.25rem, 4vw, 2.5rem); }
+.content-items { display: grid; gap: var(--stack); }
+.content-item { padding-top: 1rem; border-top: ${ds.borders.width} solid var(--line); }
+.content-item h3 { margin: 0 0 .4rem; font-size: 1.05rem; }
+.content-item p { margin: 0; color: var(--muted); }
+.content-item .meta { display: block; margin-top: .5rem; font-size: ${ds.typeScale.small}; color: var(--muted); }
+.content-media { margin: 0 0 1.5rem; overflow: hidden; border-radius: var(--media-radius); background: var(--surface); }
+.content-media img { width: 100%; height: auto; display: block; }
+.content-gallery .content-items, .content-team .content-items, .content-pricing .content-items, .content-menu .content-items { grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); }
+.content-faq .content-items, .content-process .content-items, .content-list .content-items { grid-template-columns: 1fr; max-width: 52rem; }
+.content-split { display: grid; grid-template-columns: .9fr 1.1fr; gap: 2rem; align-items: start; }
+.content-split .content-head { margin-bottom: 0; }
+.content-section > .btn { margin-top: 1.25rem; }
 .contact-list { padding-left: 1.1rem; color: var(--muted); }
 .footer {
   padding: 2rem 0 3rem; border-top: ${ds.borders.width} solid var(--line);
   color: var(--muted); font-size: ${ds.typeScale.small};
 }
 @media (max-width: 800px) {
-  .hero { grid-template-columns: 1fr; }
+  .hero, .content-split { grid-template-columns: 1fr; }
   .hero h1 { max-width: none; font-size: clamp(2.2rem, 10vw, 3.2rem); }
   .nav nav { display: none; }
 }
