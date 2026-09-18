@@ -1,6 +1,6 @@
 import type { SiteDocument } from "@/lib/schemas/site";
 import { SiteDocumentSchema } from "@/lib/schemas/site";
-import { completeJson } from "@/lib/ai/provider";
+import { completeJson, getConfiguredProvider } from "@/lib/ai/provider";
 
 /**
  * Translates conversational edit requests into surgical SiteDocument patches.
@@ -121,7 +121,8 @@ export async function applyEditRequestWithAi(input: {
       },
     });
     return result?.data ?? fallback;
-  } catch {
+  } catch (error) {
+    if (getConfiguredProvider()) throw error;
     return fallback;
   }
 }
