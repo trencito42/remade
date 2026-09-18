@@ -6,6 +6,7 @@ import {
   type UnderstandingSummary,
 } from "@/lib/schemas/interview";
 import { completeJson } from "@/lib/ai/provider";
+import { z } from "zod";
 
 function baseQuestions(profile: BusinessProfile): InterviewQuestion[] {
   const questions: InterviewQuestion[] = [];
@@ -245,4 +246,54 @@ export function openingInterviewMessage(profile: BusinessProfile): string {
     "I will only ask questions that materially change the redesign — not things the website already answered.",
     "Choose Ask me everything, or Just make smart assumptions if you want to move faster.",
   ].join(" ");
+}
+
+
+export async function selectNextQuestionsWithAi(input: {
+  projectId: string;
+  profile: BusinessProfile;
+  answeredIds: string[];
+  priorAnswers: string[];
+  limit?: number;
+}): Promise<InterviewQuestion[]> {
+  const fallback = selectNextQuestions(input);
+  try {
+    const result = await completeJson<InterviewQuestion[]>({
+      projectId: input.projectId,
+      task: "interview_question",
+      temperature: 0.35,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are interviewing a website owner before a redesign.",
+            "Ask only questions whose answer would materially change information architecture, conversion, content accuracy, visual direction, features or brand treatment.",
+            "Do not ask what the existing website already answers.",
+            "Adapt to any website model including ecommerce, SaaS, portfolio, editorial, hospitality, events, nonprofit, education, local services and communities.",
+            "Ask one concise question at a time unless explicitly requested otherwise.",
+            "Return only a JSON array matching the supplied question examples.",
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            business: input.profile,
+            answeredQuestionIds: input.answeredIds,
+            priorAnswers: input.priorAnswers,
+            fallbackExamples: fallback,
+            desiredCount: input.limit ?? 1,
+          }),
+        },
+      ],
+      parseJson: (raw) => {
+        const start = raw.indexOf("[");
+        const end = raw.lastIndexOf("]");
+        const slice = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
+        return z.array(InterviewQuestionSchema).max(input.limit ?? 1).parse(JSON.parse(slice));
+      },
+    });
+    return result?.data?.length ? result.data : fallback;
+  } catch {
+    return fallback;
+  }
 }
