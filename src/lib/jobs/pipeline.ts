@@ -27,7 +27,7 @@ import {
 import { runResearchAgent } from "@/lib/agents/research";
 import { runDesignDirector } from "@/lib/agents/design-director";
 import { generateConceptsWithAi } from "@/lib/agents/concepts";
-import { buildDesignSystem } from "@/lib/agents/design-system";
+import { buildDesignSystemWithAi } from "@/lib/agents/design-system";
 import {
   assertContentIntegrity,
   implementWebsiteWithAi,
@@ -136,7 +136,7 @@ export async function runBuildJob(jobId: string, projectId: string) {
     let designSystem: DesignSystem | null = null;
 
     await runStage(jobId, "design_system", async () => {
-      designSystem = buildDesignSystem(selected.styleDna);
+      designSystem = await buildDesignSystemWithAi({ projectId, dna: selected.styleDna });
       saveDesignSystem(projectId, designSystem);
       return { fonts: designSystem.fonts, colors: designSystem.colors };
     });
