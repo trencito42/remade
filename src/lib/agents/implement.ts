@@ -1,7 +1,7 @@
 import type { BusinessProfile } from "@/lib/schemas/business";
 import type { UnderstandingSummary } from "@/lib/schemas/interview";
 import type { StyleDNA } from "@/lib/schemas/style-dna";
-import { completeJson } from "@/lib/ai/provider";
+import { completeJson, getConfiguredProvider } from "@/lib/ai/provider";
 import {
   SiteDocumentSchema,
   type DesignSystem,
@@ -196,7 +196,8 @@ export async function implementWebsiteWithAi(input: {
     const site = result?.data ?? fallback;
     const integrity = assertContentIntegrity(site);
     return integrity.ok ? site : fallback;
-  } catch {
+  } catch (error) {
+    if (getConfiguredProvider()) throw error;
     return fallback;
   }
 }
