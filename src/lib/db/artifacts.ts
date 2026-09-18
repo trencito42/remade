@@ -90,6 +90,36 @@ export function replaceConcepts(projectId: string, concepts: Concept[]) {
   }
 }
 
+function parseStoredConceptPreview(raw: string): {
+  preview: Concept["preview"];
+  previewCss: string;
+  differentiation?: string;
+} {
+  const parsed = JSON.parse(raw) as unknown;
+
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "preview" in parsed
+  ) {
+    const envelope = parsed as {
+      preview: Concept["preview"];
+      previewCss?: string;
+      differentiation?: string;
+    };
+    return {
+      preview: envelope.preview,
+      previewCss: envelope.previewCss ?? "",
+      differentiation: envelope.differentiation,
+    };
+  }
+
+  return {
+    preview: parsed as Concept["preview"],
+    previewCss: "",
+  };
+}
+
 export function listConcepts(projectId: string): (Concept & { id: string })[] {
   const rows = getDb()
     .prepare(
@@ -106,30 +136,17 @@ export function listConcepts(projectId: string): (Concept & { id: string })[] {
   }[];
 
   return rows.map((row) => {
-    const stored = JSON.parse(row.preview_json) as
-      | {
-          preview?: Concept["preview"];
-          previewCss?: string;
-          differentiation?: string;
-        }
-      | Concept["preview"];
-
-    const isEnvelope =
-      stored &&
-      typeof stored === "object" &&
-      "preview" in stored;
+    const stored = parseStoredConceptPreview(row.preview_json);
 
     return {
       id: row.id,
       letter: row.letter,
       name: row.name,
       pitch: row.pitch,
-      differentiation: isEnvelope
-        ? stored.differentiation ?? row.pitch
-        : row.pitch,
-      previewCss: isEnvelope ? stored.previewCss ?? "" : "",
+      differentiation: stored.differentiation ?? row.pitch,
+      previewCss: stored.previewCss,
       styleDna: JSON.parse(row.style_dna_json) as StyleDNA,
-      preview: isEnvelope ? stored.preview! : stored,
+      preview: stored.preview,
     };
   });
 }
