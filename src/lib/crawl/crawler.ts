@@ -1,3 +1,4 @@
+import { setDefaultResultOrder } from "node:dns";
 import * as cheerio from "cheerio";
 import {
   assertUrlSafeToFetch,
@@ -12,6 +13,22 @@ const MAX_PAGES = 6;
 const MAX_BYTES = 1_500_000;
 const FETCH_TIMEOUT_MS = 12_000;
 const MAX_REDIRECTS = 5;
+
+// Many VPSes advertise IPv6 without having reliable outbound IPv6 routing.
+// Prefer IPv4 while still allowing IPv6 fallback.
+setDefaultResultOrder("ipv4first");
+
+function fetchErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) return "Unknown network error";
+  const cause = (error as Error & { cause?: unknown }).cause;
+  if (cause instanceof Error) return `${error.message}: ${cause.message}`;
+  if (cause && typeof cause === "object") {
+    const details = cause as { code?: unknown; message?: unknown };
+    const suffix = [details.code, details.message].filter(Boolean).join(" ");
+    if (suffix) return `${error.message}: ${suffix}`;
+  }
+  return error.message;
+}
 
 export type CrawlResult = {
   seedUrl: string;
@@ -32,21 +49,40 @@ async function fetchWithLimits(url: URL): Promise<{
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     let response: Response;
     try {
-      response = await fetch(current.toString(), {
-        method: "GET",
-        redirect: "manual",
-        signal: controller.signal,
-        headers: {
-          "User-Agent": "RemadeBot/0.1 (+https://remade.local; website-redesign analysis)",
-          Accept: "text/html,application/xhtml+xml",
-        },
-      });
-    } catch (error) {
-      clearTimeout(timer);
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new UnsafeUrlError("Timed out while fetching the website.");
+      let lastError: unknown = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          response = await fetch(current.toString(), {
+            method: "GET",
+            redirect: "manual",
+            signal: controller.signal,
+            headers: {
+              "User-Agent":
+                "Mozilla/5.0 (compatible; RemadeBot/1.0; +https://builder.blipmade.com)",
+              Accept: "text/html,application/xhtml+xml",
+              "Accept-Language": "en-US,en;q=0.8",
+              "Cache-Control": "no-cache",
+            },
+          });
+          lastError = null;
+          break;
+        } catch (error) {
+          lastError = error;
+          if (error instanceof Error && error.name === "AbortError") break;
+          if (attempt === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 250));
+          }
+        }
       }
-      throw error;
+
+      if (!response!) {
+        if (lastError instanceof Error && lastError.name === "AbortError") {
+          throw new UnsafeUrlError("Timed out while fetching the website.");
+        }
+        throw new UnsafeUrlError(
+          `Could not connect to the website: ${fetchErrorMessage(lastError)}`,
+        );
+      }
     } finally {
       clearTimeout(timer);
     }
