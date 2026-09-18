@@ -56,14 +56,20 @@ export function critiqueRenderedSite(input: {
     }
   }
 
-  if (!html.includes('id="contact"') && !html.includes('data-section="contact"')) {
+  const heroSection = site.sections.find((s) => s.type === "hero");
+  if (
+    heroSection &&
+    heroSection.type === "hero" &&
+    heroSection.primaryHref.startsWith("#") &&
+    !html.includes(`id="${heroSection.primaryHref.slice(1)}"`)
+  ) {
     issues.push({
       severity: "major",
       category: "conversion",
       viewport: null,
-      observation: "No contact section anchor was found in the rendered page.",
-      recommendation: "Ensure the conversion destination is present and linked from the hero CTA.",
-      selectorHint: "#contact",
+      observation: "The primary hero CTA points to an anchor that does not exist.",
+      recommendation: "Point the CTA to a real destination or add the matching destination section.",
+      selectorHint: ".hero .btn",
     });
   }
 
