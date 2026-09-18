@@ -1,7 +1,9 @@
 import type { BusinessProfile } from "@/lib/schemas/business";
 import type { UnderstandingSummary } from "@/lib/schemas/interview";
 import type { CreativeBrief } from "@/lib/schemas/style-dna";
+import { z } from "zod";
 import { ConceptSchema, type Concept } from "@/lib/schemas/site";
+import { completeJson } from "@/lib/ai/provider";
 import type { StyleDNA } from "@/lib/schemas/style-dna";
 
 function basePreview(profile: BusinessProfile, interview: UnderstandingSummary | null) {
@@ -171,4 +173,56 @@ export function generateConcepts(input: {
   });
 
   return [editorial, minimal, bold];
+}
+
+
+/** Prefer AI art direction when configured; deterministic concepts remain the safe fallback. */
+export async function generateConceptsWithAi(input: {
+  projectId: string;
+  profile: BusinessProfile;
+  brief: CreativeBrief;
+  interview: UnderstandingSummary | null;
+}): Promise<Concept[]> {
+  const fallback = generateConcepts(input);
+  try {
+    const result = await completeJson<Concept[]>({
+      projectId: input.projectId,
+      task: "concepts",
+      temperature: 0.75,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are an elite web design director, not a template generator.",
+            "Create exactly 3 genuinely different website directions A, B, C for the specific business.",
+            "They must differ in composition, typography, density, imagery treatment and section rhythm, not just colors.",
+            "Avoid generic SaaS heroes, gradient blobs, card soup, repetitive icon grids, fake stats and invented claims.",
+            "Mobile must feel intentionally designed, not a collapsed desktop.",
+            "Return JSON only. Preserve every field and enum value required by the supplied examples.",
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            business: input.profile,
+            ownerInterview: input.interview,
+            creativeBrief: input.brief,
+            schemaExamples: fallback,
+          }),
+        },
+      ],
+      parseJson: (raw) => {
+        const start = raw.indexOf("[");
+        const end = raw.lastIndexOf("]");
+        const slice = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
+        const parsed = z.array(ConceptSchema).length(3).parse(JSON.parse(slice));
+        const letters = parsed.map((x) => x.letter).join("");
+        if (letters !== "ABC") throw new Error("Concept letters must be A, B, C");
+        return parsed;
+      },
+    });
+    return result?.data ?? fallback;
+  } catch {
+    return fallback;
+  }
 }
