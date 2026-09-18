@@ -81,7 +81,11 @@ export function replaceConcepts(projectId: string, concepts: Concept[]) {
       concept.name,
       concept.pitch,
       JSON.stringify(concept.styleDna),
-      JSON.stringify(concept.preview),
+      JSON.stringify({
+        preview: concept.preview,
+        previewCss: concept.previewCss ?? "",
+        differentiation: concept.differentiation,
+      }),
     );
   }
 }
@@ -101,15 +105,33 @@ export function listConcepts(projectId: string): (Concept & { id: string })[] {
     preview_json: string;
   }[];
 
-  return rows.map((row) => ({
-    id: row.id,
-    letter: row.letter,
-    name: row.name,
-    pitch: row.pitch,
-    differentiation: row.pitch,
-    styleDna: JSON.parse(row.style_dna_json) as StyleDNA,
-    preview: JSON.parse(row.preview_json),
-  }));
+  return rows.map((row) => {
+    const stored = JSON.parse(row.preview_json) as
+      | {
+          preview?: Concept["preview"];
+          previewCss?: string;
+          differentiation?: string;
+        }
+      | Concept["preview"];
+
+    const isEnvelope =
+      stored &&
+      typeof stored === "object" &&
+      "preview" in stored;
+
+    return {
+      id: row.id,
+      letter: row.letter,
+      name: row.name,
+      pitch: row.pitch,
+      differentiation: isEnvelope
+        ? stored.differentiation ?? row.pitch
+        : row.pitch,
+      previewCss: isEnvelope ? stored.previewCss ?? "" : "",
+      styleDna: JSON.parse(row.style_dna_json) as StyleDNA,
+      preview: isEnvelope ? stored.preview! : stored,
+    };
+  });
 }
 
 export function selectConcept(projectId: string, conceptId: string) {
