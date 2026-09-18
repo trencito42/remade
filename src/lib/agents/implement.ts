@@ -163,7 +163,7 @@ export async function implementWebsiteWithAi(input: {
         {
           role: "system",
           content: [
-            "You are a senior product designer and conversion copywriter building a real small-business website.",
+            "You are a senior product designer, information architect and copywriter building a real website for the supplied organization or product.",
             "Return ONLY a SiteDocument JSON object matching the supplied example shape.",
             "Use only facts from the business profile or confirmed owner interview.",
             "Do not invent testimonials, ratings, awards, years, prices, customer counts, addresses, opening hours or certifications.",
