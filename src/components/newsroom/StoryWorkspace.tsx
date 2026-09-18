@@ -368,6 +368,7 @@ export function SourceRail({
             source={source}
             dimmed={highlighted.size > 0 && !highlighted.has(source.id)}
             claimRelationship={claimRel}
+            debugClustering
           />
         );
       })}

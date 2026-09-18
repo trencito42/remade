@@ -16,6 +16,7 @@ import {
   type ArticleBlock,
 } from "@/lib/db/schema";
 import type { ClaimStatus, ClaimSupport, StoryFeedItem, StoryStatus, WorkspaceClaim, WorkspaceSource } from "@/types/domain";
+import { eventAgreement, scoreBreakdown, titleSimilarity } from "@/features/clustering/score";
 
 export type StoryClusterRow = typeof storyClusters.$inferSelect;
 
@@ -175,7 +176,7 @@ export type HydratedWorkspace = {
   leadSource: string;
   published: boolean;
   publishedSlug?: string;
-  sources: Array<{
+    sources: Array<{
     id: string;
     name: string;
     tier: number;
@@ -185,6 +186,12 @@ export type HydratedWorkspace = {
     isPrimary: boolean;
     relationship: string;
     excerpt?: string | null;
+    matchScore?: number;
+    titleSimilarity?: number;
+    eventAgreement?: number;
+    temporalScore?: number;
+    categoryScore?: number;
+    embeddingAvailable?: boolean;
   }>;
   claims: Array<{
     id: string;
@@ -244,6 +251,14 @@ export async function getStoryWorkspace(id: string): Promise<HydratedWorkspace |
     .map((article) => {
       const source = sourceMap.get(article.sourceId);
       const link = links.find((l) => l.rawArticleId === article.id);
+      const match = scoreBreakdown({
+        embeddingSimilarity: null,
+        titleSimilarity: titleSimilarity(article.title, cluster.workingTitle),
+        entityOverlap: 0,
+        temporalScore: 0.5,
+        categoryScore: 1,
+        eventAgreement: eventAgreement(article.title, cluster.workingTitle),
+      });
       return {
         id: article.id,
         name: source?.name ?? "Unknown",
@@ -254,6 +269,12 @@ export async function getStoryWorkspace(id: string): Promise<HydratedWorkspace |
         isPrimary: Boolean(link?.isPrimarySource),
         relationship: link?.relationship ?? "follow",
         excerpt: article.excerpt,
+        matchScore: link?.confidence ?? match.finalScore,
+        titleSimilarity: match.titleSimilarity,
+        eventAgreement: match.eventAgreement,
+        temporalScore: match.temporalScore,
+        categoryScore: match.categoryScore,
+        embeddingAvailable: match.embeddingAvailable,
       };
     })
     .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));

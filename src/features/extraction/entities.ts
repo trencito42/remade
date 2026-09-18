@@ -10,6 +10,8 @@ export function normalizeAlias(value: string): string {
   return value
     .toLowerCase()
     .replace(/grand theft auto/g, "gta")
+    .replace(/open ai/g, "openai")
+    .replace(/geforce/g, "nvidia")
     .replace(/\bvi\b/g, "6")
     .replace(/\bv\b/g, "5")
     .replace(/\biv\b/g, "4")
@@ -35,12 +37,12 @@ export const defaultEntities: EntitySeed[] = [
   },
   { name: "Rockstar Games", type: "company", canonicalKey: "rockstar-games", aliases: ["Rockstar", "Rockstar Games"] },
   { name: "Take-Two Interactive", type: "company", canonicalKey: "take-two", aliases: ["Take-Two", "Take Two"] },
-  { name: "NVIDIA", type: "company", canonicalKey: "nvidia", aliases: ["Nvidia", "NVIDIA"] },
+  { name: "NVIDIA", type: "company", canonicalKey: "nvidia", aliases: ["Nvidia", "NVIDIA", "GeForce"] },
   { name: "GeForce RTX 5090", type: "hardware", canonicalKey: "rtx-5090", aliases: ["RTX 5090", "GeForce RTX 5090"] },
   { name: "Xbox Game Studios", type: "studio", canonicalKey: "xbox-game-studios", aliases: ["Xbox Game Studios", "Xbox"] },
   { name: "PlayStation 5", type: "platform", canonicalKey: "playstation-5", aliases: ["PS5", "PlayStation 5"] },
   { name: "Steam", type: "platform", canonicalKey: "steam", aliases: ["Steam", "Valve Steam"] },
-  { name: "OpenAI", type: "company", canonicalKey: "openai", aliases: ["OpenAI"] },
+  { name: "OpenAI", type: "company", canonicalKey: "openai", aliases: ["OpenAI", "Open AI"] },
   { name: "Unity", type: "product", canonicalKey: "unity", aliases: ["Unity", "Unity Engine"] },
   { name: "Microsoft", type: "company", canonicalKey: "microsoft", aliases: ["Microsoft", "MSFT"] },
   { name: "Sony Interactive Entertainment", type: "company", canonicalKey: "sony", aliases: ["Sony", "SIE", "Sony Interactive"] },

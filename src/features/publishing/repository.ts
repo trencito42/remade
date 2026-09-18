@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, ilike, or } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import {
   draftArticles,
@@ -40,6 +40,8 @@ export type PublicStoryView = {
     title: string;
     isPrimary: boolean;
     relationship: string;
+    domain?: string | null;
+    excerpt?: string | null;
   }>;
 };
 
@@ -149,7 +151,7 @@ export async function publishDraft(
     published = created;
   }
 
-  // Update story cluster and draft status
+  // Mark cluster as published
   await db
     .update(storyClusters)
     .set({
@@ -159,17 +161,22 @@ export async function publishDraft(
     })
     .where(eq(storyClusters.id, draft.storyId));
 
-  await db
-    .update(draftArticles)
-    .set({ status: "published" })
-    .where(eq(draftArticles.id, draft.id));
-
   return published;
+}
+
+export async function getPublishedArticleById(id: string): Promise<PublishedArticleRow | null> {
+  const db = await getDb();
+  const [row] = await db
+    .select()
+    .from(publishedArticles)
+    .where(eq(publishedArticles.id, id))
+    .limit(1);
+  return row ?? null;
 }
 
 export async function listPublishedArticles(
   categoryOrOptions?: string | { category?: string; limit?: number },
-  limit = 40,
+  limit = 20,
 ): Promise<PublicStoryView[]> {
   const db = await getDb();
   let category: string | undefined;
@@ -198,23 +205,23 @@ export async function listPublishedArticles(
   const clusters = await db
     .select()
     .from(storyClusters)
-    .where(or(...storyIds.map((id) => eq(storyClusters.id, id))));
+    .where(inArray(storyClusters.id, storyIds));
   const clusterMap = new Map(clusters.map((c) => [c.id, c]));
 
   const links = await db
     .select()
     .from(storySources)
-    .where(or(...storyIds.map((id) => eq(storySources.storyId, id))));
+    .where(inArray(storySources.storyId, storyIds));
 
   const articleIds = Array.from(new Set(links.map((l) => l.rawArticleId)));
   const articles = articleIds.length
-    ? await db.select().from(rawArticles).where(or(...articleIds.map((id) => eq(rawArticles.id, id))))
+    ? await db.select().from(rawArticles).where(inArray(rawArticles.id, articleIds))
     : [];
   const articleMap = new Map(articles.map((a) => [a.id, a]));
 
   const sourceIds = Array.from(new Set(articles.map((a) => a.sourceId)));
   const sourceRows = sourceIds.length
-    ? await db.select().from(sources).where(or(...sourceIds.map((id) => eq(sources.id, id))))
+    ? await db.select().from(sources).where(inArray(sources.id, sourceIds))
     : [];
   const sourceMap = new Map(sourceRows.map((s) => [s.id, s]));
 
@@ -235,6 +242,8 @@ export async function listPublishedArticles(
           title: art?.title ?? "Article",
           isPrimary: link.isPrimarySource,
           relationship: link.relationship,
+          domain: src?.domain,
+          excerpt: art?.excerpt,
         };
       })
       .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
@@ -284,13 +293,13 @@ export async function getPublishedArticleBySlug(slug: string): Promise<PublicSto
 
   const articleIds = links.map((l) => l.rawArticleId);
   const articles = articleIds.length
-    ? await db.select().from(rawArticles).where(or(...articleIds.map((id) => eq(rawArticles.id, id))))
+    ? await db.select().from(rawArticles).where(inArray(rawArticles.id, articleIds))
     : [];
   const articleMap = new Map(articles.map((a) => [a.id, a]));
 
   const sourceIds = Array.from(new Set(articles.map((a) => a.sourceId)));
   const sourceRows = sourceIds.length
-    ? await db.select().from(sources).where(or(...sourceIds.map((id) => eq(sources.id, id))))
+    ? await db.select().from(sources).where(inArray(sources.id, sourceIds))
     : [];
   const sourceMap = new Map(sourceRows.map((s) => [s.id, s]));
 
@@ -307,6 +316,8 @@ export async function getPublishedArticleBySlug(slug: string): Promise<PublicSto
         title: art?.title ?? "Article",
         isPrimary: link.isPrimarySource,
         relationship: link.relationship,
+        domain: src?.domain,
+        excerpt: art?.excerpt,
       };
     })
     .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));

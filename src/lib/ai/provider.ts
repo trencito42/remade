@@ -79,6 +79,14 @@ export class AiProvider {
     return Boolean(this.baseUrl && this.apiKey);
   }
 
+  get embeddingsEnabled(): boolean {
+    const env = getEnv();
+    if (env.embeddingsEnabled === false) return false;
+    if (AiProvider.embeddingsSupported === false) return false;
+    if (!env.aiEmbeddingModel && env.embeddingsEnabled !== true) return false;
+    return this.available;
+  }
+
   async chatJson<T>(input: {
     task: AiTask;
     promptVersion: string;
@@ -143,8 +151,12 @@ export class AiProvider {
   private static embeddingsSupported: boolean | null = null;
 
   async embed(texts: string[], task: AiTask = "embed_text"): Promise<number[][] | null> {
-    if (!this.available) return null;
-    if (AiProvider.embeddingsSupported === false) return null;
+    if (!this.embeddingsEnabled) return null;
+
+    const env = getEnv();
+    const embeddingModel = env.aiEmbeddingModel || "text-embedding-3-small";
+    const embedBase = env.embeddingBaseUrl || this.baseUrl;
+    const embedKey = env.embeddingApiKey || this.apiKey;
 
     try {
       const correlationId = crypto.randomUUID();
@@ -153,8 +165,10 @@ export class AiProvider {
         promptVersion: "embed-v1",
         correlationId,
         path: "/embeddings",
+        baseUrl: embedBase,
+        apiKey: embedKey,
         body: {
-          model: this.embeddingModel || "text-embedding-3-small",
+          model: embeddingModel,
           input: texts,
         },
       });
@@ -164,10 +178,9 @@ export class AiProvider {
       return (raw.data as Array<{ embedding: number[] }>).map((row) => row.embedding);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("404") || msg.includes("Not found")) {
+      if (msg.includes("404") || msg.includes("Not found") || msg.includes("HTTP 404")) {
         AiProvider.embeddingsSupported = false;
       }
-      // Graceful degradation when embeddings are not supported by the provider
       return null;
     }
   }
@@ -178,6 +191,8 @@ export class AiProvider {
     correlationId: string;
     path: string;
     body: Record<string, unknown>;
+    baseUrl?: string;
+    apiKey?: string;
   }): Promise<{
     error?: { message?: string };
     usage?: unknown;
@@ -185,23 +200,27 @@ export class AiProvider {
     data?: unknown;
     model?: string;
   }> {
-    if (!this.available) throw new Error("AI provider is not configured");
+    if (!this.available && !input.baseUrl) throw new Error("AI provider is not configured");
 
     const started = Date.now();
     let lastError: unknown;
     const maxAttempts = 3;
+    const requestModel = typeof input.body.model === "string" ? input.body.model : this.chatModel || "unspecified";
+    const endpoint = `${(input.baseUrl || this.baseUrl).replace(/\/$/, "")}${input.path}`;
+    const apiKey = input.apiKey || this.apiKey;
+    let loggedError = false;
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 25_000);
 
-        const response = await fetch(`${this.baseUrl}${input.path}`, {
+        const response = await fetch(endpoint, {
           method: "POST",
           signal: controller.signal,
           headers: {
             "content-type": "application/json",
-            authorization: `Bearer ${this.apiKey}`,
+            authorization: `Bearer ${apiKey}`,
             "x-correlation-id": input.correlationId,
           },
           body: JSON.stringify(input.body),
@@ -218,30 +237,28 @@ export class AiProvider {
         if (!response.ok) {
           const status = response.status;
           const msg = json.error?.message || `AI request failed with HTTP ${status}`;
-
-          // Do NOT retry 400, 401, 403, 404 client errors
           if (status >= 400 && status < 500 && status !== 429) {
             await this.log({
               task: input.task,
               promptVersion: input.promptVersion,
-              model: this.chatModel || "unspecified",
+              model: requestModel,
               inputTokens: null,
               outputTokens: null,
               latencyMs: Date.now() - started,
               status: "error",
               error: msg,
             });
-            throw new Error(msg);
+            loggedError = true;
+            throw Object.assign(new Error(msg), { status, noRetry: true });
           }
-
-          throw new Error(msg);
+          throw Object.assign(new Error(msg), { status });
         }
 
         const usage = usageSchema.parse(json.usage);
         await this.log({
           task: input.task,
           promptVersion: input.promptVersion,
-          model: typeof json.model === "string" ? json.model : this.chatModel || "unspecified",
+          model: typeof json.model === "string" ? json.model : requestModel,
           inputTokens: usage?.prompt_tokens ?? null,
           outputTokens: usage?.completion_tokens ?? null,
           latencyMs: Date.now() - started,
@@ -252,8 +269,7 @@ export class AiProvider {
         return json;
       } catch (error) {
         lastError = error;
-        // If client error was rethrown, exit loop
-        if (error instanceof Error && error.message.includes("HTTP 4")) {
+        if (error && typeof error === "object" && "noRetry" in error) {
           break;
         }
         if (attempt < maxAttempts - 1) {
@@ -262,19 +278,21 @@ export class AiProvider {
       }
     }
 
-    const errMessage = lastError instanceof Error ? lastError.message : "AI request failed";
-    await this.log({
-      task: input.task,
-      promptVersion: input.promptVersion,
-      model: this.chatModel || "unspecified",
-      inputTokens: null,
-      outputTokens: null,
-      latencyMs: Date.now() - started,
-      status: "error",
-      error: errMessage,
-    });
+    if (!loggedError) {
+      const errMessage = lastError instanceof Error ? lastError.message : "AI request failed";
+      await this.log({
+        task: input.task,
+        promptVersion: input.promptVersion,
+        model: requestModel,
+        inputTokens: null,
+        outputTokens: null,
+        latencyMs: Date.now() - started,
+        status: "error",
+        error: errMessage,
+      });
+    }
 
-    throw lastError instanceof Error ? lastError : new Error(errMessage);
+    throw lastError instanceof Error ? lastError : new Error("AI request failed");
   }
 
   private async log(row: {

@@ -175,13 +175,24 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
           Dispatch clusters overlapping reporting and attributes original evidence. Secondary repetition of the same press release or announcement is not treated as independent confirmation.
         </p>
 
-        <ul className="divide-y divide-line/40 border-t border-line/60">
-          {story.sources.map((source) => (
-            <li key={source.id} className="py-1">
-              <SourceDetail source={source} />
-            </li>
-          ))}
-        </ul>
+        {story.sources.length > 0 ? (
+          <ul className="divide-y divide-line/40 border-t border-line/60">
+            {story.sources.map((source) => (
+              <li key={source.id} className="py-1">
+                <SourceDetail source={source} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="py-3 px-3.5 rounded-lg bg-s1 border border-line/60 flex items-center justify-between text-[13px]">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-ink">{story.leadSource}</span>
+              <span className="text-faint">·</span>
+              <span className="text-mute text-[12.5px]">Primary wire reporting</span>
+            </div>
+            <span className="text-[11.5px] text-faint">Direct intake</span>
+          </div>
+        )}
       </section>
 
       {/* Related Stories */}

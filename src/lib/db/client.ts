@@ -52,17 +52,9 @@ async function openPglite(dir: string) {
   clearPid(dir);
   try {
     return await PGlite.create(dir, { relaxedDurability: true });
-  } catch (first) {
-    try {
-      fs.rmSync(dir, { recursive: true, force: true });
-      fs.mkdirSync(dir, { recursive: true });
-      globalForDb.__dispatchBootstrapped = false;
-      return await PGlite.create(dir, { relaxedDurability: true });
-    } catch {
-      console.error("PGlite data directory failed; using in-memory Postgres.", first);
-      globalForDb.__dispatchBootstrapped = false;
-      return await PGlite.create({ relaxedDurability: true });
-    }
+  } catch (err) {
+    console.warn("Could not lock PGlite data directory; falling back to in-memory Postgres without deleting disk data.", err);
+    return PGlite.create({ relaxedDurability: true });
   }
 }
 

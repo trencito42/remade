@@ -52,6 +52,12 @@ export async function ingestAllEnabledFeeds(concurrency = 6): Promise<IngestResu
   });
 
   await Promise.all(workers);
+  try {
+    const { reconcileHighConfidenceDuplicates } = await import("@/features/clustering/reconcile");
+    await reconcileHighConfidenceDuplicates();
+  } catch {
+    // reconciliation is best-effort
+  }
   return results;
 }
 

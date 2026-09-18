@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import * as Dialog from "@radix-ui/react-dialog";
-import { ArrowUpRight, CheckCircle2, AlertTriangle, ExternalLink } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, AlertTriangle } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import { SourceBadge } from "@/components/source/SourceBadge";
 import { Favicon } from "@/components/ui/Favicon";
@@ -20,16 +20,24 @@ export type SourceViewItem = {
   excerpt?: string | null;
   domain?: string | null;
   claimRelationship?: "supports" | "contradicts" | null;
+  matchScore?: number;
+  titleSimilarity?: number;
+  eventAgreement?: number;
+  temporalScore?: number;
+  categoryScore?: number;
+  embeddingAvailable?: boolean;
 };
 
 export function SourceDetail({
   source,
   dimmed = false,
   claimRelationship = null,
+  debugClustering = false,
 }: {
   source: SourceViewItem;
   dimmed?: boolean;
   claimRelationship?: "supports" | "contradicts" | null;
+  debugClustering?: boolean;
 }) {
   const [compact, setCompact] = useState(false);
 
@@ -68,6 +76,12 @@ export function SourceDetail({
         )}
         <span className="text-faint">·</span>
         <span className="capitalize">{source.relationship}</span>
+        {debugClustering && typeof source.matchScore === "number" ? (
+          <>
+            <span className="text-faint">·</span>
+            <span className="tabular">match {source.matchScore.toFixed(2)}</span>
+          </>
+        ) : null}
         {relationshipState === "supports" ? (
           <>
             <span className="text-faint">·</span>
@@ -102,7 +116,8 @@ export function SourceDetail({
                 {source.name}
               </Dialog.Title>
             </div>
-            {body}
+          {body}
+          {debugClustering ? <ClusterMatchDebug source={source} /> : null}
             <Dialog.Close className="touch-target-44 w-full mt-3 bg-s1 text-ink text-[13px] font-medium rounded-md hover:bg-line transition-colors">
               Close
             </Dialog.Close>
@@ -127,9 +142,24 @@ export function SourceDetail({
             <p className="text-[13px] font-semibold tracking-tight text-ink">{source.name}</p>
           </div>
           {body}
+          {debugClustering ? <ClusterMatchDebug source={source} /> : null}
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
+  );
+}
+
+function ClusterMatchDebug({ source }: { source: SourceViewItem }) {
+  return (
+    <div className="mt-2 rounded-md border border-line/70 bg-s1 px-2 py-1.5 text-[11px] text-mute space-y-0.5">
+      <p className="font-semibold text-ink text-[11px]">Why this cluster</p>
+      {typeof source.matchScore === "number" ? <p>score {source.matchScore.toFixed(2)}</p> : null}
+      {typeof source.titleSimilarity === "number" ? <p>title {source.titleSimilarity.toFixed(2)}</p> : null}
+      {typeof source.eventAgreement === "number" ? <p>event {source.eventAgreement.toFixed(2)}</p> : null}
+      {typeof source.temporalScore === "number" ? <p>time {source.temporalScore.toFixed(2)}</p> : null}
+      {typeof source.categoryScore === "number" ? <p>category {source.categoryScore.toFixed(2)}</p> : null}
+      <p>embeddings {source.embeddingAvailable ? "available" : "disabled"}</p>
+    </div>
   );
 }
 
