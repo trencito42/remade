@@ -14,7 +14,7 @@ import {
   selectConcept,
 } from "@/lib/db/artifacts";
 import { startBuildPipeline, startDirectionPipeline } from "@/lib/jobs/pipeline";
-import { generateConcepts } from "@/lib/agents/concepts";
+import { generateConceptsWithAi } from "@/lib/agents/concepts";
 import type { UnderstandingSummary } from "@/lib/schemas/interview";
 import { renderConceptPreviewHtml } from "@/lib/render/html";
 
@@ -95,7 +95,7 @@ export async function POST(request: Request, { params }: Params) {
       ];
     }
 
-    const concepts = generateConcepts({ profile, brief, interview: summary });
+    const concepts = await generateConceptsWithAi({ projectId: id, profile, brief, interview: summary });
     concepts.forEach((c) => {
       c.name = `${c.name} · rev`;
       if (body.feedback) {
