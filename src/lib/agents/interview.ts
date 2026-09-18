@@ -8,6 +8,62 @@ import {
 import { completeJson, getConfiguredProvider } from "@/lib/ai/provider";
 import { z } from "zod";
 
+const INTERVIEW_TOPICS = new Set([
+  "goals",
+  "audience",
+  "positioning",
+  "conversion",
+  "perception",
+  "visual",
+  "dislikes",
+  "competitors",
+  "content_accuracy",
+  "functionality",
+] as const);
+
+type InterviewTopic = InterviewQuestion["topic"];
+
+function normalizeInterviewTopic(value: unknown): InterviewTopic {
+  const raw = String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (INTERVIEW_TOPICS.has(raw as InterviewTopic)) return raw as InterviewTopic;
+
+  const aliases: Record<string, InterviewTopic> = {
+    goal: "goals",
+    objectives: "goals",
+    objective: "goals",
+    users: "audience",
+    customers: "audience",
+    target_audience: "audience",
+    brand: "positioning",
+    branding: "positioning",
+    strategy: "positioning",
+    cta: "conversion",
+    conversions: "conversion",
+    sales: "conversion",
+    trust: "perception",
+    credibility: "perception",
+    aesthetics: "visual",
+    design: "visual",
+    style: "visual",
+    avoid: "dislikes",
+    references: "competitors",
+    competition: "competitors",
+    accuracy: "content_accuracy",
+    content: "content_accuracy",
+    features: "functionality",
+    feature: "functionality",
+    technical: "functionality",
+  };
+
+  return aliases[raw] ?? "goals";
+}
+
+function normalizeInterviewQuestion(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") return raw;
+  const question = raw as Record<string, unknown>;
+  return { ...question, topic: normalizeInterviewTopic(question.topic) };
+}
+
 function baseQuestions(profile: BusinessProfile): InterviewQuestion[] {
   const questions: InterviewQuestion[] = [];
 
@@ -289,7 +345,7 @@ export async function selectNextQuestionsWithAi(input: {
         const start = raw.indexOf("[");
         const end = raw.lastIndexOf("]");
         const slice = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
-        return z.array(InterviewQuestionSchema).max(input.limit ?? 1).parse(JSON.parse(slice));
+        const parsed = JSON.parse(slice) as unknown;\n        if (!Array.isArray(parsed)) return z.array(InterviewQuestionSchema).parse(parsed);\n        return z.array(InterviewQuestionSchema).max(input.limit ?? 1).parse(parsed.map(normalizeInterviewQuestion));
       },
     });
     return result?.data?.length ? result.data : fallback;
