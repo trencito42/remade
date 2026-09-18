@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { WorkingState } from "@/components/workflow/WorkingState";
 
 type Concept = {
   id: string;
@@ -125,16 +126,19 @@ export function DirectionsStudio({ projectId }: { projectId: string }) {
       </p>
 
       {preparing ? (
-        <ol className="stage-list">
-          {stages.map((stage) => (
-            <li key={stage.name} data-status={stage.status}>
-              <span className="stage-marker" aria-hidden />
-              <div>
-                <p className="stage-label">{stage.label}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
+        <WorkingState
+          eyebrow="Creative direction"
+          title="Developing three directions"
+          description="Remade is turning the business strategy into three distinct visual systems, not three color swaps."
+          stages={stages}
+          currentStage={stages.find((stage) => stage.status === "running")?.name ?? null}
+          error={error}
+          meta={[
+            { label: "Concepts", value: `${concepts.length}/3` },
+            { label: "Viewport", value: "Mobile first" },
+            { label: "Mode", value: "Art direction" },
+          ]}
+        />
       ) : (
         <>
           <div className="viewport-toggle">
@@ -198,8 +202,8 @@ export function DirectionsStudio({ projectId }: { projectId: string }) {
         </>
       )}
 
-      {error ? <p className="intake-error">{error}</p> : null}
-      <p className="quiet">Status: {status || "…"}</p>
+      {!preparing && error ? <p className="intake-error">{error}</p> : null}
+      {!preparing ? <p className="quiet">Status: {status || "…"}</p> : null}
     </div>
   );
 }
