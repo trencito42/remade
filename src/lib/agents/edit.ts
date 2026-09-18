@@ -1,5 +1,6 @@
 import type { SiteDocument } from "@/lib/schemas/site";
 import { SiteDocumentSchema } from "@/lib/schemas/site";
+import { completeJson } from "@/lib/ai/provider";
 
 /**
  * Translates conversational edit requests into surgical SiteDocument patches.
@@ -77,4 +78,50 @@ export function applyEditRequest(
     site: SiteDocumentSchema.parse(next),
     summary: notes.join(" "),
   };
+}
+
+
+export async function applyEditRequestWithAi(input: {
+  projectId: string;
+  site: SiteDocument;
+  request: string;
+}): Promise<{ site: SiteDocument; summary: string }> {
+  const fallback = applyEditRequest(input.site, input.request);
+  try {
+    const result = await completeJson<{ site: SiteDocument; summary: string }>({
+      projectId: input.projectId,
+      task: "edit",
+      temperature: 0.25,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "Apply the user's website edit surgically to the supplied SiteDocument.",
+            "Return JSON only with {site, summary}.",
+            "Preserve unrelated working content and design decisions.",
+            "You may change customCss and flexible content sections when needed.",
+            "Never invent testimonials, prices, awards, addresses, hours, customer counts, certifications or other business facts.",
+            "Keep mobile 390px excellent. Do not rewrite the entire site unless the user explicitly asks for a redesign.",
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: JSON.stringify({ request: input.request, currentSite: input.site, fallbackExample: fallback }),
+        },
+      ],
+      parseJson: (raw) => {
+        const start = raw.indexOf("{");
+        const end = raw.lastIndexOf("}");
+        const slice = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
+        const parsed = JSON.parse(slice) as { site: unknown; summary?: unknown };
+        return {
+          site: SiteDocumentSchema.parse(parsed.site),
+          summary: typeof parsed.summary === "string" ? parsed.summary : "Applied requested edit.",
+        };
+      },
+    });
+    return result?.data ?? fallback;
+  } catch {
+    return fallback;
+  }
 }
