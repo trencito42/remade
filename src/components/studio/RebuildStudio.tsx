@@ -37,6 +37,8 @@ export function RebuildStudio({ projectId }: { projectId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const [hasPreview, setHasPreview] = useState(false);
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,6 +54,12 @@ export function RebuildStudio({ projectId }: { projectId: string }) {
       setVersions(data.versions ?? []);
       setReviews(data.reviews ?? []);
       setMessages(data.editMessages ?? []);
+      setHasPreview(Boolean(data.currentVersion));
+      setPipelineError(
+        data.jobs?.build?.error ??
+        data.jobs?.qa?.error ??
+        (data.project.status === "failed" ? "Build failed before a preview was produced." : null),
+      );
       if (data.deployment?.preview_path) {
         setPreviewPath(data.deployment.preview_path);
       }
@@ -154,6 +162,8 @@ export function RebuildStudio({ projectId }: { projectId: string }) {
       : `/api/projects/${projectId}/preview?t=${tick}`;
 
   const building = ["building", "qa"].includes(status);
+  const failedWithoutPreview = status === "failed" && !hasPreview;
+  const showWorking = building || failedWithoutPreview;
 
   return (
     <div className="studio">
@@ -205,18 +215,30 @@ export function RebuildStudio({ projectId }: { projectId: string }) {
         </div>
       </div>
 
-      {building ? (
+      {showWorking ? (
         <WorkingState
-          eyebrow={status === "qa" ? "Quality review" : "Build"}
-          title={status === "qa" ? "Critiquing the result" : "Rebuilding your site"}
+          eyebrow={status === "qa" ? "Quality review" : failedWithoutPreview ? "Build stopped" : "Build"}
+          title={
+            status === "qa"
+              ? "Critiquing the result"
+              : failedWithoutPreview
+                ? "The build stopped before preview"
+                : "Rebuilding your site"
+          }
           description={
             status === "qa"
               ? "Remade is reviewing hierarchy, rhythm, conversion clarity, and mobile composition, then repairing what misses the brief."
-              : "Remade is composing the selected direction into a real site, applying the design system and preserving verified business facts."
+              : failedWithoutPreview
+                ? "The selected direction is safe. One build stage failed before a website version could be saved."
+                : "Remade is composing the selected direction into a real site, applying the design system and preserving verified business facts."
           }
           stages={stages}
-          currentStage={stages.find((stage) => stage.status === "running")?.name ?? null}
-          error={error}
+          currentStage={
+            stages.find((stage) => stage.status === "running")?.name ??
+            stages.find((stage) => stage.status === "failed")?.name ??
+            null
+          }
+          error={pipelineError ?? error}
           meta={[
             { label: "Device priority", value: "390px first" },
             { label: "Versions", value: String(versions.length) },
@@ -225,7 +247,7 @@ export function RebuildStudio({ projectId }: { projectId: string }) {
         />
       ) : null}
 
-      {!building ? <div className={`preview-stage ${device}`}>
+      {!showWorking && hasPreview ? <div className={`preview-stage ${device}`}>
         <iframe
           title="Website preview"
           className="site-preview"
@@ -235,7 +257,7 @@ export function RebuildStudio({ projectId }: { projectId: string }) {
         />
       </div> : null}
 
-      {!building ? <div className="studio-panels">
+      {!showWorking && hasPreview ? <div className="studio-panels">
         <section>
           <h2>Edit with AI</h2>
           <div className="transcript compact">
@@ -312,7 +334,7 @@ export function RebuildStudio({ projectId }: { projectId: string }) {
         </section>
       </div> : null}
 
-      {!building && error ? <p className="intake-error">{error}</p> : null}
+      {!showWorking && error ? <p className="intake-error">{error}</p> : null}
     </div>
   );
 }
